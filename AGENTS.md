@@ -99,12 +99,12 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 
 ---
 
-## Coding Style Guidelines (Based on `csr.v` Reference)
+## Coding Style Guidelines 
 
-All RTL modules in this project should strictly follow the coding conventions used in `csr.v`:
+All RTL modules in this project should strictly follow the coding conventions:
 
 1. **Indentation & Formatting**
-   - Use consistent indentation (spaces, matching `csr.v` style).
+   - Use consistent indentation.
    - Align parameters, port lists, and signal declarations for readability.
 
 2. **Module Declaration**
