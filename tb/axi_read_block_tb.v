@@ -2,7 +2,7 @@
 
 module axi_read_block_tb;
     reg clk;
-    reg rst_n;
+    reg reset;
     reg start;
     reg [31:0] addr;
     reg [15:0] transfer_size;
@@ -20,7 +20,7 @@ module axi_read_block_tb;
 
     axi_read_block dut (
         .clk(clk),
-        .rst_n(rst_n),
+        .reset(reset),
         .start(start),
         .addr(addr),
         .transfer_size(transfer_size),
@@ -44,16 +44,16 @@ module axi_read_block_tb;
 
     initial begin
         clk = 0;
-        rst_n = 0;
+        reset = 1;
         start = 0;
         addr = 0;
-        transfer_size = 16'd8;
+        transfer_size = 16'd16;
         arready = 0;
         rvalid = 0;
         rdata = 0;
         full = 0;
         count = 0;
-        #20 rst_n = 1;
+        #20 reset = 0;
         @(posedge clk);
         start <= 1;
         @(posedge clk);
@@ -63,23 +63,24 @@ module axi_read_block_tb;
     always @(posedge clk) begin
         if (arvalid) begin
             arready <= 1;
-            rdata <= araddr;
-            rvalid <= 1;
+            rdata   <= araddr;
+            rvalid  <= 1;
         end else begin
             arready <= 0;
-            if (rready && rvalid)
-                rvalid <= 0;
+            if (rready && rvalid) rvalid <= 0;
         end
 
         if (wr_en) begin
-            if (data_out !== (addr + count * 4)) begin
+            if (data_out !== (addr + count * 4))
                 $fatal(1, "Unexpected data %h", data_out);
-            end
             count <= count + 1;
         end
 
+        if (count == 2) full <= 1; else if (wr_en) full <= 0;
+
         if (done) begin
-            if (count != 2) $fatal(1, "Wrong word count");
+            if (count != 4) $fatal(1, "Wrong word count");
+            if (busy) $fatal(1, "Busy stuck high at done");
             $display("AXI read block test passed");
             $finish;
         end
