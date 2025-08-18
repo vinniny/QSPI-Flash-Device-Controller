@@ -16,7 +16,7 @@ module csr #(
 )(
   // APB
   input wire pclk,
-  input wire presetn,
+  input wire reset,
   input wire psel,
   input wire penable,
   input wire pwrite,
@@ -195,7 +195,7 @@ module csr #(
   assign fifo_rx_re_o = read_phase & valid_addr & (a == FIFO_RX_ADDR);
   // ---------------- Write masks ----------------------------
   // Effective CTRL mask (tighten if HAS_WP==0)
-  wire [31:0] CTRL_WMASK_EFF = HAS_WP ? 32'h0000_03FF : 32'h0000_01FF;
+  wire [31:0] CTRL_WMASK_EFF = (HAS_WP != 0) ? 32'h0000_03FF : 32'h0000_01FF;
   // NOTE: masked bits read as 0; if you need write-any/read-same, remove masks
   wire [31:0] CTRL_WMASK = 32'h0000_03FF; // nominal (used for readback checks)
   wire [31:0] CLKDIV_WMASK = 32'h0000_000F;
@@ -278,15 +278,15 @@ module csr #(
                       pwdata[8] & // bit8 set
                       valid_addr & ~ro_addr; // valid write to CTRL
   reg cmd_trig_q;
-  always @(posedge pclk or negedge presetn) begin
-    if (!presetn) cmd_trig_q <= 1'b0;
+  always @(posedge pclk) begin
+    if (reset) cmd_trig_q <= 1'b0;
     else if (cmd_trigger_clr_i) cmd_trig_q <= 1'b0;
     else if (cmd_trig_set) cmd_trig_q <= 1'b1;
   end
   assign cmd_trigger_o = cmd_trig_q;
   // ---------------- Register writes ------------------------
-  always @(posedge pclk or negedge presetn) begin
-    if (!presetn) begin
+  always @(posedge pclk) begin
+    if (reset) begin
       ctrl_reg <= 32'h0;
       int_en_reg <= 32'h0;
       int_stat_reg <= 32'h0;
@@ -337,8 +337,8 @@ module csr #(
   end
   // ---------------- INT edge qualification ----------------
   reg cmd_done_d, dma_done_d, err_d, txe_d, rxf_d;
-  always @(posedge pclk or negedge presetn) begin
-    if (!presetn) begin
+  always @(posedge pclk) begin
+    if (reset) begin
       cmd_done_d <= 1'b0; dma_done_d <= 1'b0; err_d <= 1'b0; txe_d <= 1'b0; rxf_d <= 1'b0;
     end else begin
       cmd_done_d <= cmd_done_set_i;
