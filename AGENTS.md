@@ -88,6 +88,7 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 - **Docs:** PDF with block diagrams, FSM diagrams, register map, timing (from QSPI_Controller_Design_Summary.pdf).
 - **Constraints:** FPGA synthesis constraints.
 - **Scripts:** ModelSim/Xcelium simulation scripts.
+- **Notes on Project Structure:** `folder rtl/ is old verilog files, the current working folders are src/ for RTL codes and tb/ for testbenches`.
 
 ---
 
