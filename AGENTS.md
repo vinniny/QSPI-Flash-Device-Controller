@@ -1,21 +1,40 @@
+# AGENTS.md
+
 ## Overview
-This project implements a **parameterizable QSPI Controller IP Core** in Verilog that bridges a host processor to QSPI flash memory devices (e.g., Macronix MX25L6436F). The IP supports two mutually exclusive modes: Command Mode (with optional DMA) for programmable transactions, and XIP Mode (Execute-In-Place) for memory-mapped access via an AXI slave interface.
+This project implements a **parameterizable QSPI Flash Controller IP Core** in Verilog that bridges a host processor to external QSPI flash memory devices (e.g., Macronix MX25L6436F). The IP supports two mutually exclusive modes: Command Mode (with optional DMA) for programmable transactions, and XIP Mode (Execute-In-Place) for memory-mapped access via an AXI slave interface.
 
 The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchronous reset style with an APB CSR slave interface, AXI master for DMA, and AXI slave for XIP.
+
+---
+
+## Architecture & Dataflows
+
+The QSPI Flash Controller is composed of several interconnected sub-modules: the CSR register bank, Command Engine (CE), XIP Engine, DMA Engine, QSPI FSM, QSPI IO, and the TX/RX FIFO buffers, plus the external interfaces (APB, AXI, and QSPI flash pins). The controller’s data flow differs in each operating mode:
+
+- **Command mode (no DMA)**: CSR → CE → FIFO TX → QSPI FSM → FIFO RX → CSR  
+  CPU-driven PIO transfers. The CPU configures the operation via the APB CSR interface and sets a trigger bit to start the command. The Command Engine (CE) interprets the CSR settings and initiates a transaction. Data to be written to the flash (if any) is loaded by the CPU into the FIFO TX, then driven out to the flash by the QSPI FSM. Incoming read data from the flash is captured into the FIFO RX and then read back by the CPU via the CSR interface.
+
+- **Command mode (with DMA)**: CSR → CE → FIFO TX → QSPI FSM → FIFO TX → DMA  
+  Hardware-accelerated transfers. The CPU programs the command in CSR and enables DMA for the data phase. The CE triggers the QSPI FSM to execute the command, but instead of the CPU handling the data through CSR, the DMA engine transfers data between the FIFO and system memory via AXI. For a flash read operation, the FSM fills the RX FIFO with incoming data and the DMA engine streams this data out to a designated memory buffer. For a flash write/program, the DMA engine fetches data from memory into the TX FIFO, which the FSM serializes to the flash. This offloads the CPU for large transfers.
+
+- **XIP mode**: CSR → XIP → FIFO TX → QSPI FSM → FIFO RX → XIP  
+  Memory-mapped flash reads. The CPU (or bus master) directly reads from a predefined flash address range, which is routed to the QSPI controller’s AXI slave interface. When an AXI read request is received, the XIP Engine generates the appropriate flash read sequence (using pre-configured settings in the XIP registers) and triggers the QSPI FSM. The FSM performs the read from the flash, and the data is captured in the FIFO RX and returned over the AXI bus to the master. From the system’s perspective, the flash is memory-mapped. (XIP mode is typically read-only; writes are optional.)
+
+Notes on Data Paths: In all modes, the QSPI FSM utilizes the FIFO TX for any outgoing data (command bytes, address, or program data) and the FIFO RX for incoming data from flash. Only one front-end engine (CE or XIP) is active at a time. The FIFOs also serve as Clock Domain Crossing (CDC) buffers between the faster system clock domain (e.g., AXI) and the slower QSPI clock domain.
 
 ---
 
 ## Agent Roles
 
 ### 1. **CSR Agent** (`csr.v`)
-- Implements AMBA 3/4 APB-compliant CSR slave (configurable via HAS_PSTRB, APB_WINDOW_LSB).
+- Implements AMBA APB v2.0-compliant CSR slave.
 - Handles register access for:
-  - CTRL: Enable, XIP_EN, QUAD_EN, CMD_TRIGGER (W1S), DMA_EN, etc.
-  - STATUS: Busy, levels, errors.
-  - INT_EN/INT_STAT: Interrupts for CMD_DONE, DMA_DONE, ERR, FIFO events.
-  - CLK_DIV, CS_CTRL, XIP_CFG, CMD_CFG, DMA_CFG, etc.
-- Parameterizable address width and optional WP bit.
+  - `CTRL`: enable, mode select (XIP_EN, CMD_TRIGGER (self-clearing), DMA_EN), etc.
+  - `STATUS`: busy flags, error codes, FIFO levels.
+  - Interrupt handling: `INT_EN`, `INT_STAT` for CMD_DONE, DMA_DONE, ERR, FIFO events.
+  - Timing and mode registers: `CLK_DIV`, `CS_CTRL`, `XIP_CFG`, `CMD_CFG`, `DMA_CFG`.
 - Ensures synchronous read/write timing with reserved-bit masks and RO validation.
+- Fully synchronous read/write with reserved bit masking.
 
 ---
 
@@ -25,6 +44,7 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 - With DMA: Coordinates FIFO transfers via AXI master.
 - Supports commands: READ, WRITE, ERASE, READ STATUS.
 - Raises cmd_done_set_i on completion.
+- Signals completion via `cmd_done_set_i`.
 
 ---
 
@@ -34,6 +54,8 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 - Manages CPOL/CPHA, clock divider, and bit shifting.
 - Interfaces with FIFO for data streaming.
 - Adheres to flash specs (e.g., MX25L6436F timings).
+- Streams data via FIFO interfaces.
+- Timings follow flash device datasheet (MX25L series).
 
 ---
 
@@ -41,6 +63,7 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 - Physical IO shifter for QSPI pins (SCLK, CS#, IO[3:0]).
 - Handles single/dual/quad shifting, tri-state control, and HOLD/WP if enabled.
 - Synchronizes with QSPI FSM for phase transitions.
+- Tri-state and HOLD/WP control when enabled.
 
 ---
 
@@ -57,35 +80,48 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 ---
 
 ### 6. **DMA Engine Agent** (`dma_engine.v`)
-- AXI4-Lite master for offloading FIFO ↔ memory transfers.
+- AXI4 master for offloading FIFO ↔ memory transfers.
 - Configurable burst size, direction (dma_dir_o), address/length.
 - Avoids underrun/overrun with FIFO levels.
 - Raises dma_done_set_i on completion.
+- Prevents FIFO underflow/overflow.
 
 ---
 
 ### 7. **XIP Engine Agent** (`xip_engine.v`)
-- AXI4-Lite slave for memory-mapped flash access (reads; writes optional).
+- AXI4 slave for memory-mapped flash access (reads; writes optional).
 - Translates AXI reads to continuous QSPI fetches.
 - Supports dummy cycles, mode bits, and continuous read.
 - No CMD_TRIGGER needed; triggered by AXI activity.
+- Operates without explicit command trigger.
 
 ---
 
 ## Simulation Agent
-- Self-checking testbench for:
+- Self-checking testbench environment.
+- Covers:
   - Command Mode: READ/WRITE/ERASE with/without DMA.
   - XIP Mode: Burst reads, waveform verification.
   - FIFO overflows, error injection (timeout, overrun).
-  - Flash model integration (qspi_device.v, MX25L6436F.v).
+  - Flash model integration (MX25L6436F.v).
 - Automatic pass/fail scoreboard with coverage for lanes, dummies, and modes.
+- Provides automatic pass/fail scoreboard.
+
+---
+
+## Project Structure
+- `src/` → Current RTL implementation.
+- `tb/` → Testbenches and flash model integration.
+- `rtl/` → Old/deprecated RTL files (for reference only).
+- `docs/` → Specifications, diagrams, register maps, timing.
+- `reference/` → Supporting reference materials.
 
 ---
 
 ## Deliverables
 - **RTL:** Verilog `.v` source files (csr.v, qspi_fsm.v, etc.).
 - **Testbench:** Self-checking `.v` files with flash model.
-- **Docs:** PDF with block diagrams, FSM diagrams, register map, timing (from QSPI_Controller_Design_Summary.pdf).
+- **Docs:** PDF with block diagrams, FSM diagrams, register map, timing (from QSPI Flash Controller – Technical Design Report.pdf).
 - **Constraints:** FPGA synthesis constraints.
 - **Scripts:** ModelSim/Xcelium simulation scripts.
 - **Notes on Project Structure:** `folder rtl/ is old verilog files, the current working folders are src/ for RTL codes and tb/ for testbenches`.
@@ -95,8 +131,9 @@ The design is modular, synthesis-ready for FPGA/ASIC, and follows a fully synchr
 ## Notes
 - All modules are **parameterized** for reuse (e.g., ADDR_WIDTH, FIFO_DEPTH).
 - Only synchronous resets are used.
-- APB interface is AMBA 3/4 compliant; AXI is AXI4-Lite.
+- APB interface is AMBA APB v2.0 compliant; AXI is AXI4.
 - Modes are exclusive: CMD_TRIGGER for Command, XIP_EN for XIP.
+- AXI and APB interfaces follow standard AMBA compliance.
 
 ---
 
@@ -145,4 +182,3 @@ For this QSPI Controller IP Core project, both **Verilator** and **Icarus Verilo
 3. Maintain a single **file list** (`.f` file or Makefile variable) so both tools compile the exact same RTL set.
 4. Optionally run **Verilator simulation** for large-scale or long-run tests where speed is critical, while iverilog is preferred for mixed behavioral testbenches.
 5. Always check protocol compliance, flash timing, and FIFO/DMA consistency in both simulators.
-
