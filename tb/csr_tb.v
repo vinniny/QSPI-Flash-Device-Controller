@@ -14,6 +14,8 @@ module csr_tb;
     wire pready;
     wire pslverr;
     wire enable_o;
+    wire cmd_start;
+    reg busy;
 
     csr dut (
         .pclk(pclk),
@@ -33,12 +35,12 @@ module csr_tb;
         .cpol_o(),
         .cpha_o(),
         .lsb_first_o(),
-        .cmd_trigger_o(),
+        .cmd_start_o(cmd_start),
         .dma_en_o(),
         .mode_en_o(),
         .hold_en_o(),
         .wp_en_o(),
-        .cmd_trigger_clr_i(1'b0),
+        .cmd_trigger_clr_i(cmd_start),
         .clk_div_o(),
         .cs_auto_o(),
         .cs_level_o(),
@@ -79,7 +81,7 @@ module csr_tb;
         .err_set_i(1'b0),
         .fifo_tx_empty_set_i(1'b0),
         .fifo_rx_full_set_i(1'b0),
-        .busy_i(1'b0),
+        .busy_i(busy),
         .xip_active_i(1'b0),
         .cmd_done_i(1'b0),
         .dma_done_i(1'b0),
@@ -97,22 +99,24 @@ module csr_tb;
     initial pclk = 0;
     always #5 pclk = ~pclk;
 
-    task apb_write(input [11:0] addr, input [31:0] data);
+    // APB write with PSLVERR capture
+    task apb_write(input [11:0] addr, input [31:0] data, output reg err);
     begin
         @(posedge pclk);
-        psel <= 1;
-        penable <= 0;
+        psel   <= 1;
+        penable<= 0;
         pwrite <= 1;
-        paddr <= addr;
+        paddr  <= addr;
         pwdata <= data;
-        pstrb <= 4'hF;
+        pstrb  <= 4'hF;
         @(posedge pclk);
-        penable <= 1;
+        penable<= 1;
         @(posedge pclk);
-        psel <= 0;
-        penable <= 0;
+        err    = pslverr;
+        psel   <= 0;
+        penable<= 0;
         pwrite <= 0;
-        paddr <= 0;
+        paddr  <= 0;
         pwdata <= 0;
     end
     endtask
@@ -135,23 +139,49 @@ module csr_tb;
     endtask
 
     initial begin
-        psel = 0;
+        reg err;
+        psel    = 0;
         penable = 0;
-        pwrite = 0;
-        paddr = 0;
-        pwdata = 0;
-        pstrb = 4'hF;
+        pwrite  = 0;
+        paddr   = 0;
+        pwdata  = 0;
+        pstrb   = 4'hF;
         presetn = 0;
+        busy    = 0;
         #20 presetn = 1;
+
+        // Read ID
         apb_read(12'h000, rdata);
-        if (rdata !== 32'h1A001081) begin
-            $fatal(1, "ID mismatch %h", rdata);
-        end
-        apb_write(12'h004, 32'h1);
+        if (rdata !== 32'h1A001081) $fatal(1, "ID mismatch %h", rdata);
+
+        // Enable controller
+        apb_write(12'h004, 32'h1, err);
+        if (err) $fatal(1, "Unexpected PSLVERR on enable");
         @(posedge pclk);
-        if (!enable_o) begin
-            $fatal(1, "Enable bit not set");
-        end
+        if (!enable_o) $fatal(1, "Enable bit not set");
+
+        // Trigger command
+        apb_write(12'h004, 32'h101, err);
+        @(posedge pclk);
+        if (err || !cmd_start) $fatal(1, "CMD_TRIGGER failed");
+
+        // Trigger while busy should error
+        busy = 1;
+        apb_write(12'h004, 32'h101, err);
+        if (!err) $fatal(1, "PSLVERR not asserted on busy trigger");
+        busy = 0;
+
+        // XIP exclusivity
+        apb_write(12'h004, 32'h3, err);   // enable + xip_en
+        @(posedge pclk);
+        apb_write(12'h004, 32'h103, err); // try to trigger
+        @(posedge pclk);
+        if (cmd_start) $fatal(1, "CMD_TRIGGER allowed during XIP");
+
+        // Read-only address write -> PSLVERR
+        apb_write(12'h000, 32'h0, err);
+        if (!err) $fatal(1, "PSLVERR not asserted on RO write");
+
         $display("CSR test passed");
         $finish;
     end

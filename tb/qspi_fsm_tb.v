@@ -5,6 +5,8 @@ module qspi_fsm_tb;
     reg resetn;
     reg start;
     wire done;
+    integer i;
+    reg [7:0] cap;
 
     reg [1:0] cmd_lanes_sel;
     reg [1:0] addr_lanes_sel;
@@ -78,8 +80,8 @@ module qspi_fsm_tb;
         addr_bytes_sel = 0;
         mode_en = 0;
         dummy_cycles = 0;
-        dir = 0; // write
-        cmd_opcode = 8'h06; // WREN
+        dir = 0;
+        cmd_opcode = 8'h06;
         mode_bits = 0;
         addr = 0;
         len_bytes = 0;
@@ -87,14 +89,41 @@ module qspi_fsm_tb;
         cpol = 0;
         cpha = 0;
         tx_data_fifo = 32'h0;
-        tx_empty = 1'b1;  // no TX words needed for WREN
+        tx_empty = 1'b1;
         rx_full = 0;
+        cap = 0;
         #20 resetn = 1;
-        @(posedge clk);
-        start <= 1;
-        @(posedge clk);
-        start <= 0;
+
+        // Test MSB-first and CS timing with WREN
+        @(posedge clk); start <= 1; @(posedge clk); start <= 0;
+        wait(!cs_n);
+        for (i=0;i<8;i=i+1) begin
+            @(posedge sclk); cap = {cap[6:0], io0}; @(negedge sclk);
+        end
         wait(done);
+        if (cap !== 8'h06) $fatal(1, "Opcode shifted LSB-first");
+        if (cs_n) $fatal(1, "CS# high before done");
+        wait(cs_n);
+
+        // Test dual-lane opcode shifting
+        cmd_lanes_sel = 2'b01; // dual
+        cmd_opcode    = 8'hAB;
+        tx_empty      = 1'b1;
+        cap = 0;
+        @(posedge clk); start <= 1; @(posedge clk); start <= 0;
+        wait(!cs_n);
+        @(posedge sclk); cap[1:0] = {io1, io0}; @(negedge sclk);
+        wait(done);
+        if (cap[1:0] !== 2'b10) $fatal(1, "Dual-lane MSB mismatch");
+
+        // Test dummy cycle skip when len=0
+        cmd_lanes_sel = 0;
+        cmd_opcode    = 8'h0B; // fast read
+        dummy_cycles  = 4'd8;
+        len_bytes     = 0;
+        @(posedge clk); start <= 1; @(posedge clk); start <= 0;
+        wait(done);
+
         $display("QSPI FSM test passed");
         $finish;
     end

@@ -2,7 +2,7 @@
 
 module axi_write_block_tb;
     reg clk;
-    reg rst_n;
+    reg reset;
     reg start;
     reg [31:0] addr;
     reg [15:0] transfer_size;
@@ -23,7 +23,7 @@ module axi_write_block_tb;
 
     axi_write_block dut (
         .clk(clk),
-        .rst_n(rst_n),
+        .reset(reset),
         .start(start),
         .addr(addr),
         .transfer_size(transfer_size),
@@ -43,8 +43,8 @@ module axi_write_block_tb;
         .done(done)
     );
 
-    reg [31:0] fifo_mem [0:1];
-    reg [31:0] captured [0:1];
+    reg [31:0] fifo_mem [0:3];
+    reg [31:0] captured [0:3];
     integer idx;
     integer write_cnt;
 
@@ -52,10 +52,10 @@ module axi_write_block_tb;
     always #5 clk = ~clk;
 
     initial begin
-        rst_n = 0;
+        reset = 1;
         start = 0;
         addr = 0;
-        transfer_size = 16'd8;
+        transfer_size = 16'd16;
         awready = 1;
         wready = 1;
         bvalid = 1;
@@ -65,7 +65,9 @@ module axi_write_block_tb;
         write_cnt = 0;
         fifo_mem[0] = 32'hDEADBEEF;
         fifo_mem[1] = 32'h12345678;
-        #20 rst_n = 1;
+        fifo_mem[2] = 32'hA5A5A5A5;
+        fifo_mem[3] = 32'h00000000;
+        #20 reset = 0;
         start = 1;
         @(posedge clk);
         start = 0;
@@ -75,7 +77,7 @@ module axi_write_block_tb;
         if (rd_en) begin
             data_in <= fifo_mem[idx];
             idx <= idx + 1;
-            empty <= (idx + 1 >= 2);
+            empty <= (idx + 1 >= 4);
         end
         if (wvalid && wready) begin
             captured[write_cnt] <= wdata;
@@ -89,20 +91,19 @@ module axi_write_block_tb;
     end
 
     initial begin
-        // Wait for both words to be written
-        wait (write_cnt == 2);
+        // Wait for all words to be written
+        wait (write_cnt == 4);
         // Give one cycle for B to handshake if needed
         @(posedge clk);
-        if (captured[0] !== fifo_mem[0] || captured[1] !== fifo_mem[1]) begin
-            $fatal(1, "AXI write data mismatch: got %h %h exp %h %h",
-                   captured[0], captured[1], fifo_mem[0], fifo_mem[1]);
+        if (captured[0] !== fifo_mem[0] || captured[1] !== fifo_mem[1] ||
+            captured[2] !== fifo_mem[2] || captured[3] !== fifo_mem[3]) begin
+            $fatal(1, "AXI write data mismatch");
         end
-        // Check done
         if (!done) begin
-            // Allow the block to raise done in the next few cycles
             repeat (4) @(posedge clk);
             if (!done) $fatal(1, "AXI write block never asserted done");
         end
+        if (busy) $fatal(1, "Busy stuck high at end");
         $display("AXI write block test passed");
         $finish;
     end

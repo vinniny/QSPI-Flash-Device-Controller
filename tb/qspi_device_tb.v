@@ -31,14 +31,14 @@ module qspi_device_tb;
         master_do = 0;
         #10 qspi_cs_n = 0;
         master_oe = 1;
-        // send 0x9F command
+        // send 0x9F command MSB-first
         for (i = 7; i >= 0; i = i - 1) begin
             master_do = (8'h9F >> i) & 1'b1;
             #5 qspi_sclk = 1;
             #5 qspi_sclk = 0;
         end
         master_oe = 0; // release for read
-        // read first byte
+        // read manufacturer ID
         id_byte = 0;
         for (i = 0; i < 8; i = i + 1) begin
             #5 qspi_sclk = 1;
@@ -46,6 +46,7 @@ module qspi_device_tb;
             #5 qspi_sclk = 0;
         end
         qspi_cs_n = 1;
+        if (id_byte !== 8'hC2) $fatal(1, "ID byte mismatch %h", id_byte);
         $display("QSPI device test passed");
         $finish;
     end
