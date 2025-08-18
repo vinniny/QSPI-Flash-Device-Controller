@@ -22,7 +22,7 @@ module qspi_fsm_tb;
     reg cpha;
     reg [31:0] tx_data_fifo;
     wire tx_ren;
-    wire tx_empty;
+    reg tx_empty;   // was wire
     wire [31:0] rx_data_fifo;
     wire rx_wen;
     reg rx_full;
@@ -87,6 +87,7 @@ module qspi_fsm_tb;
         cpol = 0;
         cpha = 0;
         tx_data_fifo = 32'h0;
+        tx_empty = 1'b1;  // no TX words needed for WREN
         rx_full = 0;
         #20 resetn = 1;
         @(posedge clk);

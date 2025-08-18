@@ -83,8 +83,26 @@ module axi_write_block_tb;
         end
     end
 
+    // Check address once at accept
+    always @(posedge clk) if (awvalid && awready) begin
+        if (awaddr !== addr) $fatal(1, "Unexpected AWADDR %h", awaddr);
+    end
+
     initial begin
-        repeat (40) @(posedge clk);
+        // Wait for both words to be written
+        wait (write_cnt == 2);
+        // Give one cycle for B to handshake if needed
+        @(posedge clk);
+        if (captured[0] !== fifo_mem[0] || captured[1] !== fifo_mem[1]) begin
+            $fatal(1, "AXI write data mismatch: got %h %h exp %h %h",
+                   captured[0], captured[1], fifo_mem[0], fifo_mem[1]);
+        end
+        // Check done
+        if (!done) begin
+            // Allow the block to raise done in the next few cycles
+            repeat (4) @(posedge clk);
+            if (!done) $fatal(1, "AXI write block never asserted done");
+        end
         $display("AXI write block test passed");
         $finish;
     end

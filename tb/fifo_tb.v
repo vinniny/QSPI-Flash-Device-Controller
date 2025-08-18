@@ -42,6 +42,9 @@ module fifo_tb;
             @(posedge clk);
         end
         wr_en = 0;
+        // Full/empty sanity after writes
+        if (full) $fatal(1, "FIFO should not be full after 4 writes");
+        if (empty) $fatal(1, "FIFO should not be empty after writes");
 
         // Read back and check
         for (i = 0; i < 4; i = i + 1) begin
@@ -49,10 +52,11 @@ module fifo_tb;
             @(posedge clk);
             rd_en = 0;
             @(posedge clk);
+            if (data_out !== exp[i]) begin
+                $fatal(1, "FIFO data mismatch at %0d: got %h exp %h", i, data_out, exp[i]);
+            end
         end
-        if (!empty) begin
-            $fatal(1, "FIFO should be empty");
-        end
+        if (!empty) $fatal(1, "FIFO should be empty at end");
         $display("FIFO test passed");
         $finish;
     end
