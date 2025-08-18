@@ -160,7 +160,7 @@ All RTL modules in this project should strictly follow the coding conventions:
    - Use inline comments for important lines of code or signal meaning.
 
 5. **Reset Style**
-   - Synchronous reset only, active-high by default.
+   - Synchronous reset only, active-low by default.
    - All registers initialized in reset block.
 
 6. **Coding Practices**
