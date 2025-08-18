@@ -1,6 +1,6 @@
 module axi_read_block (
     input wire          clk,
-    input wire          rst_n,
+    input wire          reset,
 
     input wire          start,
     input wire  [31:0]  addr,
@@ -31,8 +31,8 @@ module axi_read_block (
     reg [15:0] count;
     reg [31:0] addr_reg;
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always @(posedge clk) begin
+        if (reset) begin
             state     <= IDLE;
             count     <= 0;
             addr_reg  <= 0;
