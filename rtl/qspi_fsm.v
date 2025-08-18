@@ -2,7 +2,7 @@ module qspi_fsm #(
     parameter ADDR_WIDTH = 32
 )(
     input wire clk,
-    input wire resetn,
+    input wire reset,
 
     // Kick start & done
     input wire start,   // pulse to start a transaction
@@ -37,7 +37,7 @@ module qspi_fsm #(
     // Write path (DIR=0)
     input wire [31:0] tx_data_fifo,
     output wire tx_ren,
-    output wire tx_empty,
+    input  wire tx_empty,
 
     // Read path (DIR=1)
     output reg [31:0] rx_data_fifo,
@@ -82,13 +82,13 @@ localparam IDLE       = 4'd0,
     reg [3:0] state, next_state;
     reg [31:0] bit_cnt, next_bit_cnt;
     reg [31:0] byte_cnt, next_byte_cnt;
-    reg [3:0]  lanes, next_lanes;
+    reg [2:0]  lanes, next_lanes;
     reg [31:0] data_shift_reg, next_data_shift_reg;
     reg [3:0]  io_oe, next_io_oe;
     reg [3:0]  dummy_left, next_dummy_left;
 
-    integer cmd_lanes_eff, addr_lanes_eff, data_lanes_eff;
-    integer addr_bits;
+    reg [2:0] cmd_lanes_eff, addr_lanes_eff, data_lanes_eff;
+    reg [5:0] addr_bits;
 
     // SCLK engine
     reg        sclk_en, next_sclk_en;
@@ -119,15 +119,15 @@ localparam IDLE       = 4'd0,
     // Output bit mux
     always @* begin
         case (lanes)
-            1: out_bits = {3'b000, data_shift_reg[31]};
-            2: out_bits = {2'b00, data_shift_reg[31], data_shift_reg[30]};
-            4: out_bits = {data_shift_reg[31], data_shift_reg[30], data_shift_reg[29], data_shift_reg[28]};
+            3'd1: out_bits = {3'b000, data_shift_reg[31]};
+            3'd2: out_bits = {2'b00, data_shift_reg[31], data_shift_reg[30]};
+            3'd4: out_bits = {data_shift_reg[31], data_shift_reg[30], data_shift_reg[29], data_shift_reg[28]};
             default: out_bits = 4'b0000;
         endcase
         case (lanes)
-            1: input_bits = {3'b000, io_di[1]};
-            2: input_bits = {2'b00, io_di[1:0]};
-            4: input_bits = io_di[3:0];
+            3'd1: input_bits = {3'b000, io_di[1]};
+            3'd2: input_bits = {2'b00, io_di[1:0]};
+            3'd4: input_bits = io_di[3:0];
             default: input_bits = 4'b0000;
         endcase
     end
@@ -136,8 +136,8 @@ localparam IDLE       = 4'd0,
     assign sclk = sclk_en ? sclk_q : cpol;
 
     // SCLK generator
-    always @(posedge clk or negedge resetn) begin
-        if (!resetn) begin
+    always @(posedge clk) begin
+        if (reset) begin
             sclk_cnt   <= 0;
             sclk_q     <= cpol;
             sclk_edge  <= 1'b0;
@@ -162,17 +162,17 @@ localparam IDLE       = 4'd0,
     end
 
     // Sequential state registers
-    always @(posedge clk or negedge resetn) begin
-        if (!resetn) begin
+    always @(posedge clk) begin
+        if (reset) begin
             state <= IDLE;
             cs_n  <= 1'b1;
             bit_cnt <= 0;
             byte_cnt <= 0;
-            lanes <= 1;
+            lanes <= 3'd1;
             data_shift_reg <= 0;
             io_oe <= 0;
-              sclk_en <= 0;
-              dummy_left <= 0;
+            sclk_en <= 0;
+            dummy_left <= 0;
         end else begin
             state <= next_state;
             cs_n  <= (next_state==IDLE || next_state==STOP_CS);
@@ -201,9 +201,9 @@ localparam IDLE       = 4'd0,
         rx_data_fifo = 32'b0;
 
         // lane decode
-        cmd_lanes_eff  = (cmd_lanes_sel==2'b00)?1:(cmd_lanes_sel==2'b01)?2:4;
-        addr_lanes_eff = (addr_lanes_sel==2'b00)?1:(addr_lanes_sel==2'b01)?2:4;
-        data_lanes_eff = (data_lanes_sel==2'b00)?1:(data_lanes_sel==2'b01)?2:4;
+        cmd_lanes_eff  = (cmd_lanes_sel==2'b00)?3'd1:(cmd_lanes_sel==2'b01)?3'd2:3'd4;
+        addr_lanes_eff = (addr_lanes_sel==2'b00)?3'd1:(addr_lanes_sel==2'b01)?3'd2:3'd4;
+        data_lanes_eff = (data_lanes_sel==2'b00)?3'd1:(data_lanes_sel==2'b01)?3'd2:3'd4;
 
         case (state)
             IDLE: begin
@@ -215,14 +215,14 @@ localparam IDLE       = 4'd0,
                 next_bit_cnt = 0;
                 next_lanes = cmd_lanes_eff;
                 next_data_shift_reg = {24'b0, cmd_opcode};
-                next_io_oe = (next_lanes==1)?4'b0001:(next_lanes==2)?4'b0011:4'b1111;
+                next_io_oe = (next_lanes==3'd1)?4'b0001:(next_lanes==3'd2)?4'b0011:4'b1111;
             end
 
             CMD: begin
                 next_sclk_en = 1;
                 if (shift_pulse) next_data_shift_reg = data_shift_reg << lanes;
                 if (bit_tick) begin
-                    next_bit_cnt = bit_cnt + lanes;
+                    next_bit_cnt = bit_cnt + {{29{1'b0}}, lanes};
                     if (next_bit_cnt >= 8) begin
                         next_bit_cnt = 0;
                         case (cmd_opcode)
@@ -234,7 +234,7 @@ localparam IDLE       = 4'd0,
                         if (next_state==ADDR) begin
                             next_lanes = addr_lanes_eff;
                             next_data_shift_reg = (addr_bytes_sel==2'b01)?{8'b0,addr[23:0]}:addr;
-                            next_io_oe = (next_lanes==1)?4'b0001:(next_lanes==2)?4'b0011:4'b1111;
+                            next_io_oe = (next_lanes==3'd1)?4'b0001:(next_lanes==3'd2)?4'b0011:4'b1111;
                         end
                     end
                 end
@@ -243,9 +243,9 @@ localparam IDLE       = 4'd0,
             ADDR: begin
                 next_sclk_en = 1;
                 if (shift_pulse) next_data_shift_reg = data_shift_reg << lanes;
-                  addr_bits = (addr_bytes_sel==2'b01)?24:32;
+                  addr_bits = (addr_bytes_sel==2'b01)?6'd24:6'd32;
                 if (bit_tick) begin
-                    next_bit_cnt = bit_cnt + lanes;
+                    next_bit_cnt = bit_cnt + {{29{1'b0}}, lanes};
                     if (next_bit_cnt >= addr_bits) begin
                         next_bit_cnt = 0;
                         case (cmd_opcode)
@@ -260,7 +260,7 @@ localparam IDLE       = 4'd0,
                                 end else begin
                                     next_state = DATA;
                                     next_lanes = data_lanes_eff;
-                                    next_io_oe = dir?4'b0000:((next_lanes==1)?4'b0001:(next_lanes==2)?4'b0011:4'b1111);
+                                    next_io_oe = dir?4'b0000:((next_lanes==3'd1)?4'b0001:(next_lanes==3'd2)?4'b0011:4'b1111);
                                     next_data_shift_reg = dir?32'b0:tx_data_fifo;
                                     next_byte_cnt = 0;
                                 end
@@ -268,11 +268,12 @@ localparam IDLE       = 4'd0,
                             PP, PP_4: begin
                                 next_state = DATA;
                                 next_lanes = data_lanes_eff;
-                                next_io_oe = (next_lanes==1)?4'b0001:(next_lanes==2)?4'b0011:4'b1111;
+                                next_io_oe = (next_lanes==3'd1)?4'b0001:(next_lanes==3'd2)?4'b0011:4'b1111;
                                 next_data_shift_reg = tx_data_fifo;
                                 next_byte_cnt = 0;
                             end
                             SE, BE: next_state = STOP_CS;
+                            default: next_state = STOP_CS;
                         endcase
                     end
                 end
@@ -282,7 +283,7 @@ localparam IDLE       = 4'd0,
                 next_sclk_en = 1;
                 if (shift_pulse) next_data_shift_reg = data_shift_reg << lanes;
                 if (bit_tick) begin
-                    next_bit_cnt = bit_cnt + lanes;
+                    next_bit_cnt = bit_cnt + {{29{1'b0}}, lanes};
                     if (next_bit_cnt >= 8) begin
                         next_bit_cnt = 0;
                         if (dummy_cycles!=0) begin
@@ -291,7 +292,7 @@ localparam IDLE       = 4'd0,
                         end else begin
                             next_state = DATA;
                             next_lanes = data_lanes_eff;
-                            next_io_oe = dir?4'b0000:((next_lanes==1)?4'b0001:(next_lanes==2)?4'b0011:4'b1111);
+                            next_io_oe = dir?4'b0000:((next_lanes==3'd1)?4'b0001:(next_lanes==3'd2)?4'b0011:4'b1111);
                             next_data_shift_reg = dir?32'b0:tx_data_fifo;
                             next_byte_cnt = 0;
                         end
@@ -307,7 +308,7 @@ localparam IDLE       = 4'd0,
                     if (dummy_left==1) begin
                         next_state = DATA;
                         next_lanes = data_lanes_eff;
-                        next_io_oe = dir?4'b0000:((next_lanes==1)?4'b0001:(next_lanes==2)?4'b0011:4'b1111);
+                        next_io_oe = dir?4'b0000:((next_lanes==3'd1)?4'b0001:(next_lanes==3'd2)?4'b0011:4'b1111);
                         next_data_shift_reg = dir?32'b0:tx_data_fifo;
                         next_byte_cnt = 0;
                     end
@@ -317,9 +318,9 @@ localparam IDLE       = 4'd0,
             DATA: begin
                 next_sclk_en = 1;
                 if (dir) begin
-                    if (sample_pulse) next_data_shift_reg = (data_shift_reg<<lanes)|input_bits;
+                    if (sample_pulse) next_data_shift_reg = (data_shift_reg<<lanes) | {{28{1'b0}}, input_bits};
                     if (bit_tick) begin
-                        next_bit_cnt = bit_cnt + lanes;
+                        next_bit_cnt = bit_cnt + {{29{1'b0}}, lanes};
                         if (next_bit_cnt >= 32) begin
                             if (!rx_full) begin
                                 rx_data_fifo = data_shift_reg;
@@ -334,7 +335,7 @@ localparam IDLE       = 4'd0,
                 end else begin
                     if (shift_pulse) next_data_shift_reg = data_shift_reg<<lanes;
                     if (bit_tick) begin
-                        next_bit_cnt = bit_cnt + lanes;
+                        next_bit_cnt = bit_cnt + {{29{1'b0}}, lanes};
                         if (next_bit_cnt >= 32) begin
                             next_data_shift_reg = tx_data_fifo;
                             next_byte_cnt = byte_cnt + 4;
@@ -350,10 +351,13 @@ localparam IDLE       = 4'd0,
                 next_sclk_en = 0;
                 next_state = IDLE;
             end
+            default: begin
+                next_state = IDLE;
+            end
         endcase
     end
 
     // tx_ren: request FIFO word
-    assign tx_ren = (state==DATA) & (~dir) & (bit_cnt+lanes>=32) & (byte_cnt<len_bytes) & ~tx_empty;
+    assign tx_ren = (state==DATA) & (~dir) & (bit_cnt + {{29{1'b0}}, lanes} >= 32) & (byte_cnt < len_bytes) & ~tx_empty;
 
 endmodule
