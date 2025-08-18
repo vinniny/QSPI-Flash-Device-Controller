@@ -127,6 +127,7 @@ All RTL modules in this project should strictly follow the coding conventions:
    - All registers initialized in reset block.
 
 6. **Coding Practices**
+   - Avoid using `function` and `generate`.
    - Use `localparam` for state machine encodings.
    - Avoid hard-coded values; use parameters where possible.
    - No inferred latches; all sequential logic inside `always @(posedge clk)`.
