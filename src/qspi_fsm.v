@@ -124,7 +124,7 @@ reg        sclk_en, sclk_en_n;
 reg [31:0] sclk_cnt;
 reg        sclk_q;
 reg        sclk_edge;
-reg        sclk_phase;
+reg        sclk_q_prev;
 
 assign sclk = sclk_en ? sclk_q : cpol;
 
@@ -132,20 +132,20 @@ always @(posedge clk or negedge resetn) begin
     if (!resetn) begin
         sclk_cnt   <= 32'd0;
         sclk_q     <= 1'b0;
+        sclk_q_prev<= 1'b0;
         sclk_edge  <= 1'b0;
-        sclk_phase <= 1'b0;
     end else begin
         sclk_edge <= 1'b0;
         if (!sclk_en) begin
-            sclk_cnt   <= 32'd0;
-            sclk_q     <= cpol;
-            sclk_phase <= 1'b0;
+            sclk_cnt    <= 32'd0;
+            sclk_q      <= cpol;
+            sclk_q_prev <= cpol;
         end else begin
             if (sclk_cnt >= clk_div) begin
-                sclk_cnt   <= 32'd0;
-                sclk_q     <= ~sclk_q;
-                sclk_edge  <= 1'b1;
-                sclk_phase <= ~sclk_phase;
+                sclk_cnt    <= 32'd0;
+                sclk_q_prev <= sclk_q;
+                sclk_q      <= ~sclk_q;
+                sclk_edge   <= 1'b1;
             end else begin
                 sclk_cnt <= sclk_cnt + 1;
             end
@@ -153,8 +153,14 @@ always @(posedge clk or negedge resetn) begin
     end
 end
 
-wire shift_pulse  = sclk_edge & (cpha ? ~sclk_phase : sclk_phase);
-wire sample_pulse = sclk_edge & ~shift_pulse;
+// Edge classification per CPOL/CPHA
+wire leading_edge  = sclk_edge & (sclk_q_prev == cpol);   // transition away from idle
+wire trailing_edge = sclk_edge & (sclk_q_prev != cpol);   // transition back toward idle
+
+// SPI modes: CPHA=0 => sample on leading, shift on trailing
+//            CPHA=1 => shift on leading, sample on trailing
+wire sample_pulse = cpha ? trailing_edge : leading_edge;
+wire shift_pulse  = cpha ? leading_edge  : trailing_edge;
 wire bit_tick     = sample_pulse;
 
 // ------------------------------------------------------------
@@ -173,6 +179,7 @@ reg  [3:0] out_bits, in_bits;
 always @* begin
     case (lanes)
         3'd1: begin
+            // MSB-first on IO0 for single-lane mode; sample input from IO1 (SO)
             out_bits = {3'b000, shreg[31]};
             in_bits  = {3'b000, io_di[1]};
         end
@@ -273,6 +280,7 @@ always @* begin
         CMD_BIT: begin
             sclk_en_n = 1'b1;
             io_oe_n   = lane_mask(lanes);
+            // Shift on the shifting edge so that outputs settle half-cycle earlier
             if (shift_pulse)
                 shreg_n = shreg << lanes;
             if (bit_tick) begin
@@ -308,7 +316,7 @@ always @* begin
         ADDR_BIT: begin
             sclk_en_n = 1'b1;
             io_oe_n   = lane_mask(lanes);
-            if (shift_pulse)
+            if (sample_pulse)
                 shreg_n = shreg << lanes;
             if (bit_tick) begin
                 bit_cnt_n = bit_cnt + {3'b000, lanes};
@@ -338,7 +346,7 @@ always @* begin
         MODE_BIT: begin
             sclk_en_n = 1'b1;
             io_oe_n   = lane_mask(lanes);
-            if (shift_pulse)
+            if (sample_pulse)
                 shreg_n = shreg << lanes;
             if (bit_tick) begin
                 bit_cnt_n = bit_cnt + {3'b000, lanes};
@@ -406,7 +414,7 @@ always @* begin
                     end
                 end
             end else begin
-                if (shift_pulse)
+                if (sample_pulse)
                     shreg_n = shreg << lanes;
                 if (bit_tick) begin
                     bit_cnt_n = bit_cnt + {3'b000, lanes};
@@ -447,4 +455,3 @@ assign tx_ren = (state==DATA_BIT) && !dir &&
                 ((byte_cnt + 4) < len_bytes) && !tx_empty;
 
 endmodule
-

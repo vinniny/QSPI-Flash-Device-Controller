@@ -18,18 +18,32 @@ The QSPI Flash Device Controller is a parameterizable Verilog IP core that bridg
 - `rtl/` – legacy RTL kept for comparison
 
 ## Getting Started
-Install [Verilator](https://www.veripool.org/verilator/) and [Icarus Verilog](http://iverilog.icarus.com/). Run lint and a sample simulation:
+Install [Icarus Verilog](http://iverilog.icarus.com/) and [GTKWave](https://gtkwave.sourceforge.net/). Below are example commands to build and run sample testbenches:
 
 ```bash
-# Lint all RTL
-verilator --lint-only src/*.v
+# QSPI FSM testbench
+iverilog -g2012 -s qspi_fsm_tb -o .sim/qspi_fsm_tb.vvp src/*.v tb/qspi_fsm_tb.v
+vvp .sim/qspi_fsm_tb.vvp
 
-# Compile and run the QSPI FSM testbench
-iverilog -g2012 -s qspi_fsm_tb -o /tmp/qspi_fsm_tb.vvp src/*.v tb/qspi_fsm_tb.v
-vvp /tmp/qspi_fsm_tb.vvp
+# CSR testbench
+iverilog -g2012 -s csr_tb -o .sim/csr_tb.vvp src/*.v tb/csr_tb.v
+vvp .sim/csr_tb.vvp
+
+# FIFO unit tests (TX and RX)
+iverilog -g2012 -s fifo_tx_tb -o .sim/fifo_tx_tb.vvp src/*.v tb/fifo_tx_tb.v
+vvp .sim/fifo_tx_tb.vvp
+
+iverilog -g2012 -s fifo_rx_tb -o .sim/fifo_rx_tb.vvp src/*.v tb/fifo_rx_tb.v
+vvp .sim/fifo_rx_tb.vvp
 ```
 
-These commands verify that the RTL compiles cleanly and exercise the QSPI FSM.
+To view waveforms with GTKWave, ensure your testbench emits a VCD and then:
+
+```bash
+gtkwave dump.vcd
+```
+
+These tests exercise the key blocks (FSM, CSR, and FIFOs) using Icarus Verilog.
 
 ## License
 MIT

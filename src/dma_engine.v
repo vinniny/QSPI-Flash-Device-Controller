@@ -5,11 +5,12 @@
  * selected by dma_dir_i: 0=read from memory to TX FIFO (flash write),
  * 1=write from RX FIFO to memory (flash read).
  *
- * Transfers are performed in bursts using the helper modules
- * axi_read_block and axi_write_block. Burst length and address
- * increment behavior are configurable. The engine waits on FIFO levels
- * to avoid overruns or underruns and raises dma_done_set_o when all
- * bytes have been transferred. AXI errors set axi_err_o.
+ * Transfers are performed by two separated internal blocks:
+ *  - axi_read_block  : issues AR/R to fetch words and pushes to TX FIFO
+ *  - axi_write_block : pulls from RX FIFO and issues AW/W/B to memory
+ *
+ * The engine sequences bursts, gates on FIFO levels to avoid
+ * underrun/overrun, and raises dma_done_set_o when all bytes complete.
  */
 
 module dma_engine #(
@@ -30,40 +31,40 @@ module dma_engine #(
 
   // FIFO interfaces
   input  wire [LEVEL_WIDTH-1:0]  tx_level_i,
-  output wire [31:0]            fifo_tx_data_o,
-  output wire                   fifo_tx_we_o,
+  output wire [31:0]             fifo_tx_data_o,
+  output wire                    fifo_tx_we_o,
   input  wire [LEVEL_WIDTH-1:0]  rx_level_i,
-  input  wire [31:0]            fifo_rx_data_i,
-  output wire                   fifo_rx_re_o,
+  input  wire [31:0]             fifo_rx_data_i,
+  output wire                    fifo_rx_re_o,
 
   // Status outputs
-  output reg                    dma_done_set_o,
-  output reg                    axi_err_o,
-  output wire                   busy_o,
+  output reg                     dma_done_set_o,
+  output reg                     axi_err_o,
+  output wire                    busy_o,
 
   // AXI4-Lite master interface
   // Write address channel
-  output wire [ADDR_WIDTH-1:0]  awaddr_o,
-  output wire                   awvalid_o,
-  input  wire                   awready_i,
+  output wire [ADDR_WIDTH-1:0]   awaddr_o,
+  output wire                    awvalid_o,
+  input  wire                    awready_i,
   // Write data channel
-  output wire [31:0]            wdata_o,
-  output wire                   wvalid_o,
-  output wire [3:0]             wstrb_o,
-  input  wire                   wready_i,
+  output wire [31:0]             wdata_o,
+  output wire                    wvalid_o,
+  output wire [3:0]              wstrb_o,
+  input  wire                    wready_i,
   // Write response channel
-  input  wire                   bvalid_i,
-  input  wire [1:0]             bresp_i,
-  output wire                   bready_o,
+  input  wire                    bvalid_i,
+  input  wire [1:0]              bresp_i,
+  output wire                    bready_o,
   // Read address channel
-  output wire [ADDR_WIDTH-1:0]  araddr_o,
-  output wire                   arvalid_o,
-  input  wire                   arready_i,
+  output wire [ADDR_WIDTH-1:0]   araddr_o,
+  output wire                    arvalid_o,
+  input  wire                    arready_i,
   // Read data channel
-  input  wire [31:0]            rdata_i,
-  input  wire                   rvalid_i,
-  input  wire [1:0]             rresp_i,
-  output wire                   rready_o
+  input  wire [31:0]             rdata_i,
+  input  wire                    rvalid_i,
+  input  wire [1:0]              rresp_i,
+  output wire                    rready_o
 );
 
   // ------------------------------------------------------------
@@ -77,7 +78,6 @@ module dma_engine #(
   // ------------------------------------------------------------
   // DMA configuration registers
   // ------------------------------------------------------------
-  reg                     dir_r;
   reg                     incr_addr_r;
   reg [3:0]               burst_size_r;
   reg [ADDR_WIDTH-1:0]    addr_r;
@@ -110,10 +110,10 @@ module dma_engine #(
   wire rx_data_ok  = (rx_level_i >= beats_level);
 
   // ------------------------------------------------------------
-  // AXI helper instances
+  // Separated read/write blocks
   // ------------------------------------------------------------
-  reg rd_start, wr_start;
-  wire rd_done, wr_done;
+  reg  rd_start, wr_start;
+  wire rd_done,  wr_done;
   wire [ADDR_WIDTH-1:0] araddr_w, awaddr_w;
   wire arvalid_w, rready_w;
   wire awvalid_w, wvalid_w, bready_w;
@@ -193,15 +193,14 @@ module dma_engine #(
       state           <= S_IDLE;
       dma_done_set_o  <= 1'b0;
       axi_err_o       <= 1'b0;
-      rd_start        <= 1'b0;
-      wr_start        <= 1'b0;
       busy_r          <= 1'b0;
-      dir_r           <= 1'b0;
       incr_addr_r     <= 1'b0;
       burst_size_r    <= 4'd0;
       addr_r          <= {ADDR_WIDTH{1'b0}};
       rem_bytes_r     <= 32'd0;
       burst_len_r     <= 32'd0;
+      rd_start        <= 1'b0;
+      wr_start        <= 1'b0;
     end else begin
       dma_done_set_o <= 1'b0;
       rd_start       <= 1'b0;
@@ -211,7 +210,6 @@ module dma_engine #(
         S_IDLE: begin
           axi_err_o <= 1'b0;
           if (start_pulse) begin
-            dir_r        <= dma_dir_i;
             incr_addr_r  <= incr_addr_i;
             burst_size_r <= burst_size_i;
             addr_r       <= dma_addr_i;
@@ -286,3 +284,229 @@ module dma_engine #(
 
 endmodule
 
+// ------------------------------------------------------------------
+// Read block: AR/R to TX FIFO
+// ------------------------------------------------------------------
+module axi_read_block (
+    input  wire         clk,
+    input  wire         reset,       // active high
+    input  wire         start,
+    input  wire [31:0]  addr,
+    input  wire [15:0]  transfer_size,
+
+    output reg  [31:0]  araddr,
+    output reg          arvalid,
+    input  wire         arready,
+
+    input  wire         rvalid,
+    input  wire [31:0]  rdata,
+    output reg          rready,
+
+    output reg  [31:0]  data_out,
+    output reg          wr_en,
+    input  wire         full,
+
+    output reg          busy,
+    output reg          done
+);
+  localparam IDLE=2'd0, ADDR=2'd1, DATA=2'd2, RESP=2'd3;
+  reg [1:0] state;
+  reg [31:0] addr_reg;
+  reg [15:0] count;
+
+  always @(posedge clk) begin
+    if (reset) begin
+      state   <= IDLE;
+      araddr  <= 32'd0;
+      arvalid <= 1'b0;
+      rready  <= 1'b0;
+      data_out<= 32'd0;
+      wr_en   <= 1'b0;
+      busy    <= 1'b0;
+      done    <= 1'b0;
+      addr_reg<= 32'd0;
+      count   <= 16'd0;
+    end else begin
+      arvalid <= 1'b0;
+      rready  <= 1'b0;
+      wr_en   <= 1'b0;
+      done    <= 1'b0;
+      busy    <= (state != IDLE);
+      case (state)
+        IDLE: begin
+          if (start && !full && (transfer_size!=16'd0)) begin
+            addr_reg <= {addr[31:2], 2'b00};
+            count    <= 16'd0;
+            araddr   <= {addr[31:2], 2'b00};
+            arvalid  <= 1'b1;
+            state    <= ADDR;
+          end
+        end
+        ADDR: begin
+          if (arready) begin
+            rready <= 1'b1;
+            state  <= DATA;
+          end
+        end
+        DATA: begin
+          if (rvalid && !full) begin
+            data_out <= rdata;
+            wr_en    <= 1'b1;
+            rready   <= 1'b1;
+            count    <= count + 16'd4;
+            if (count + 16'd4 < transfer_size) begin
+              addr_reg <= addr_reg + 32'd4;
+              araddr   <= addr_reg + 32'd4;
+              arvalid  <= 1'b1;
+              state    <= ADDR;
+            end else begin
+              state <= RESP;
+            end
+          end
+        end
+        RESP: begin
+          done  <= 1'b1;
+          state <= IDLE;
+        end
+      endcase
+    end
+  end
+endmodule
+
+// ------------------------------------------------------------------
+// Write block: RX FIFO to AXI W channel
+// ------------------------------------------------------------------
+module axi_write_block (
+    input  wire         clk,
+    input  wire         reset,       // active high
+    input  wire         start,
+    input  wire [31:0]  addr,
+    input  wire [15:0]  transfer_size,
+
+    output reg  [31:0]  awaddr,
+    output reg          awvalid,
+    input  wire         awready,
+
+    output reg  [31:0]  wdata,
+    output reg          wvalid,
+    output reg  [3:0]   wstrb,
+    input  wire         wready,
+
+    input  wire         bvalid,
+    output reg          bready,
+
+    input  wire [31:0]  data_in,
+    input  wire         empty,
+    output reg          rd_en,
+
+    output reg          busy,
+    output reg          done
+);
+  localparam IDLE=2'd0, ADDR=2'd1, DATA=2'd2, RESP=2'd3;
+  reg [1:0] state;
+  reg [31:0] addr_reg;
+  reg [15:0] count;
+  // Internal staging to respect FIFO read latency (non-FWFT)
+  // rd_en asserts one cycle before wdata uses data_in.
+  reg        have_word;
+  reg        rd_pending;
+  reg [31:0] word_q;
+  reg        hold_bready;
+
+  always @(posedge clk) begin
+    if (reset) begin
+      state   <= IDLE;
+      awaddr  <= 32'd0;
+      awvalid <= 1'b0;
+      wdata   <= 32'd0;
+      wvalid  <= 1'b0;
+      wstrb   <= 4'b1111;
+      bready  <= 1'b0;
+      rd_en   <= 1'b0;
+      busy    <= 1'b0;
+      done    <= 1'b0;
+      addr_reg<= 32'd0;
+      count   <= 16'd0;
+      have_word <= 1'b0;
+      rd_pending<= 1'b0;
+      word_q    <= 32'd0;
+      hold_bready <= 1'b0;
+    end else begin
+      awvalid <= 1'b0;
+      wvalid  <= 1'b0;
+      bready  <= 1'b0;
+      rd_en   <= 1'b0;
+      done    <= 1'b0;
+      busy    <= (state != IDLE);
+      case (state)
+        IDLE: begin
+          if (start && !empty && (transfer_size!=16'd0)) begin
+            addr_reg <= {addr[31:2], 2'b00};
+            count    <= 16'd0;
+            awaddr   <= {addr[31:2], 2'b00};
+            awvalid  <= 1'b1;
+            // debug: IDLE->ADDR
+            state    <= ADDR;
+          end
+        end
+        ADDR: begin
+          if (awready) begin
+            // Issue FIFO read now; data becomes valid next cycle
+            if (!empty) begin
+              rd_en      <= 1'b1;
+              have_word  <= 1'b0;
+              rd_pending <= 1'b1;
+              // debug: ADDR->DATA
+              state     <= DATA;
+            end
+          end
+        end
+        DATA: begin
+          // Latch data_in once after rd_en, then present on W channel
+          if (rd_pending) begin
+            // consume the cycle after rd_en to allow FIFO to present data
+            rd_pending <= 1'b0;
+          end else if (!have_word) begin
+            word_q    <= data_in;
+            wdata     <= data_in;
+            wvalid    <= 1'b1;
+            wstrb     <= 4'b1111;
+            have_word <= 1'b1;
+            // debug: first data word latched
+          end else begin
+            wdata  <= word_q;
+            wvalid <= 1'b1;
+          end
+
+          if (wvalid && wready) begin
+            bready      <= 1'b1;
+            hold_bready <= 1'b1;
+            count       <= count + 16'd4;
+            // debug: W channel handshake
+            // Always go to RESP to consume B before next address
+            state <= RESP;
+          end
+        end
+        RESP: begin
+          bready <= hold_bready; // keep asserted until response consumed
+          if (bvalid && bready) begin
+            hold_bready <= 1'b0;
+            if (count < transfer_size) begin
+              // More beats to go: start next address phase
+              awaddr   <= addr_reg + 32'd4;
+              awvalid  <= 1'b1;
+              addr_reg <= addr_reg + 32'd4;
+              have_word<= 1'b0;
+              // debug: RESP -> ADDR for next beat
+              state    <= ADDR;
+            end else begin
+              done  <= 1'b1;
+              // debug: write burst done
+              state <= IDLE;
+            end
+          end
+        end
+      endcase
+    end
+  end
+endmodule

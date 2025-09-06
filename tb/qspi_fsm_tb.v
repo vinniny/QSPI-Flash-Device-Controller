@@ -72,6 +72,8 @@ module qspi_fsm_tb;
     always #5 clk = ~clk;
 
     initial begin
+        $dumpfile("qspi_fsm_tb.vcd");
+        $dumpvars(0, qspi_fsm_tb);
         resetn = 0;
         start = 0;
         cmd_lanes_sel = 0;
@@ -101,6 +103,7 @@ module qspi_fsm_tb;
             @(posedge sclk); cap = {cap[6:0], io0}; @(negedge sclk);
         end
         wait(done);
+        
         if (cap !== 8'h06) $fatal(1, "Opcode shifted LSB-first");
         if (cs_n) $fatal(1, "CS# high before done");
         wait(cs_n);

@@ -1,0 +1,464 @@
+/*
+ * dma_engine.v - AXI4 DMA engine
+ *
+ * Moves data between system memory and TX/RX FIFOs. Direction is
+ * selected by dma_dir_i: 0=read from memory to TX FIFO (flash write),
+ * 1=write from RX FIFO to memory (flash read).
+ *
+ * Transfers are performed in bursts. Burst length and address
+ * increment behavior are configurable. The engine waits on FIFO levels
+ * to avoid overruns or underruns and raises dma_done_set_o when all
+ * bytes have been transferred. AXI errors set axi_err_o.
+ */
+module dma_engine #(
+  parameter integer ADDR_WIDTH = 32,
+  parameter integer DATA_WIDTH = 32,
+  parameter integer FIFO_DEPTH = 16,
+  parameter integer LEVEL_WIDTH = 5,
+  parameter integer ID_WIDTH = 4,
+  parameter integer USER_WIDTH = 1
+)(
+  input wire clk,
+  input wire resetn,
+  // CSR control/configuration
+  input wire dma_en_i,
+  input wire dma_dir_i,
+  input wire [3:0] burst_size_i,
+  input wire incr_addr_i,
+  input wire [ADDR_WIDTH-1:0] dma_addr_i,
+  input wire [31:0] dma_len_i,
+
+  // FIFO interfaces
+  input wire [LEVEL_WIDTH-1:0] tx_level_i,
+  input wire tx_full_i,
+  output wire [DATA_WIDTH-1:0] fifo_tx_data_o,
+  output wire fifo_tx_we_o,
+  input wire [LEVEL_WIDTH-1:0] rx_level_i,
+  input wire rx_empty_i,
+  input wire [DATA_WIDTH-1:0] fifo_rx_data_i,
+  output wire fifo_rx_re_o,
+
+  // Status outputs
+  output reg dma_done_set_o,
+  output reg axi_err_o,
+  output wire busy_o,
+
+  // AXI4 master interface
+  // Global
+  input wire m_aclk_i,
+  input wire m_aresetn_i,
+  // Write address channel (AW)
+  output wire [ADDR_WIDTH-1:0] m_axi_awaddr_o,
+  output wire m_axi_awvalid_o,
+  input wire m_axi_awready_i,
+  output wire [ID_WIDTH-1:0] m_axi_awid_o,
+  output wire [7:0] m_axi_awlen_o,
+  output wire [2:0] m_axi_awsize_o,
+  output wire [1:0] m_axi_awburst_o,
+  // Write data channel (W)
+  output wire [DATA_WIDTH-1:0] m_axi_wdata_o,
+  output wire m_axi_wvalid_o,
+  output wire [DATA_WIDTH/8-1:0] m_axi_wstrb_o,
+  output wire m_axi_wlast_o,
+  output wire [USER_WIDTH-1:0] m_axi_wuser_o,
+  input wire m_axi_wready_i,
+  // Write response channel (B)
+  input wire m_axi_bvalid_i,
+  input wire [1:0] m_axi_bresp_i,
+  input wire [ID_WIDTH-1:0] m_axi_bid_i,
+  input wire [USER_WIDTH-1:0] m_axi_buser_i,
+  output wire m_axi_bready_o,
+  // Read address channel (AR)
+  output wire [ADDR_WIDTH-1:0] m_axi_araddr_o,
+  output wire m_axi_arvalid_o,
+  input wire m_axi_arready_i,
+  output wire [7:0] m_axi_arlen_o,
+  output wire [2:0] m_axi_arsize_o,
+  output wire [1:0] m_axi_arburst_o,
+  output wire [ID_WIDTH-1:0] m_axi_arid_o,
+  // Read data channel (R)
+  input wire [DATA_WIDTH-1:0] m_axi_rdata_i,
+  input wire m_axi_rvalid_i,
+  input wire [1:0] m_axi_rresp_i,
+  input wire [ID_WIDTH-1:0] m_axi_rid_i,
+  input wire m_axi_rlast_i,
+  input wire [USER_WIDTH-1:0] m_axi_ruser_i,
+  output wire m_axi_rready_o
+);
+  // ------------------------------------------------------------
+  // Derived constants and FIFO status
+  // ------------------------------------------------------------
+  wire tx_full = tx_full_i;
+  wire rx_empty = rx_empty_i;
+  // ------------------------------------------------------------
+  // DMA configuration registers
+  // ------------------------------------------------------------
+  reg dir_r;
+  reg incr_addr_r;
+  reg [3:0] burst_size_r;
+  reg [ADDR_WIDTH-1:0] addr_r;
+  reg [31:0] rem_bytes_r;
+  reg busy_r;
+  reg [31:0] burst_len_r;
+  assign busy_o = busy_r;
+  // detect rising edge on dma_en_i
+  reg dma_en_d;
+  wire start_pulse = dma_en_i & ~dma_en_d;
+  always @(posedge clk) begin
+    if (!resetn)
+      dma_en_d <= 1'b0;
+    else
+      dma_en_d <= dma_en_i;
+  end
+  // ------------------------------------------------------------
+  // Burst computation based on remaining bytes and burst_size
+  // ------------------------------------------------------------
+  wire [31:0] rem_words_w = rem_bytes_r / (DATA_WIDTH / 8);
+  wire [7:0] burst_words_w = (burst_size_r == 4'd0) ? 8'd1 : {4'd0, burst_size_r};
+  wire rem_lt_burst = (rem_words_w < burst_words_w);
+  wire [7:0] beats_w = rem_lt_burst ? rem_words_w[7:0] : burst_words_w;
+  wire [31:0] len_w = beats_w * (DATA_WIDTH / 8);
+  wire [LEVEL_WIDTH-1:0] beats_level = beats_w[LEVEL_WIDTH-1:0];
+  wire tx_space_ok = (tx_level_i <= (FIFO_DEPTH[LEVEL_WIDTH-1:0] - beats_level));
+  wire rx_data_ok = (rx_level_i >= beats_level);
+  // ------------------------------------------------------------
+  // AXI helper instances
+  // ------------------------------------------------------------
+  reg rd_start, wr_start;
+  wire rd_done, wr_done;
+  axi_read_block #(
+    .ADDR_WIDTH(ADDR_WIDTH),
+    .DATA_WIDTH(DATA_WIDTH),
+    .ID_WIDTH(ID_WIDTH)
+  ) u_axi_read_block (
+    .clk (clk),
+    .rst_n (resetn),
+    .start_bit (rd_start),
+    .src_addr_reg (addr_r),
+    .transfer_size (len_w),
+    .incr_addr (incr_addr_r),
+    .araddr (m_axi_araddr_o),
+    .arvalid (m_axi_arvalid_o),
+    .arready (m_axi_arready_i),
+    .arlen (m_axi_arlen_o),
+    .arsize (m_axi_arsize_o),
+    .arburst (m_axi_arburst_o),
+    .arid (m_axi_arid_o),
+    .rvalid (m_axi_rvalid_i),
+    .rdata (m_axi_rdata_i),
+    .rready (m_axi_rready_o),
+    .rlast (m_axi_rlast_i),
+    .rresp (m_axi_rresp_i),
+    .rid (m_axi_rid_i),
+    .done_read (rd_done),
+    .tx_full (tx_full),
+    .tx_data_dma (fifo_tx_data_o),
+    .tx_wen (fifo_tx_we_o)
+  );
+  axi_write_block #(
+    .ADDR_WIDTH(ADDR_WIDTH),
+    .DATA_WIDTH(DATA_WIDTH),
+    .ID_WIDTH(ID_WIDTH),
+    .USER_WIDTH(USER_WIDTH)
+  ) u_axi_write_block (
+    .clk (clk),
+    .rst_n (resetn),
+    .start_bit (wr_start),
+    .dst_addr_reg (addr_r),
+    .transfer_size (len_w),
+    .incr_addr (incr_addr_r),
+    .rx_data (fifo_rx_data_i),
+    .rx_empty (rx_empty),
+    .rx_ren (fifo_rx_re_o),
+    .awready (m_axi_awready_i),
+    .awaddr (m_axi_awaddr_o),
+    .awvalid (m_axi_awvalid_o),
+    .awlen (m_axi_awlen_o),
+    .awsize (m_axi_awsize_o),
+    .awburst (m_axi_awburst_o),
+    .awid (m_axi_awid_o),
+    .wready (m_axi_wready_i),
+    .wvalid (m_axi_wvalid_o),
+    .wdata (m_axi_wdata_o),
+    .wstrb (m_axi_wstrb_o),
+    .wlast (m_axi_wlast_o),
+    .wuser (m_axi_wuser_o),
+    .bvalid (m_axi_bvalid_i),
+    .bready (m_axi_bready_o),
+    .bresp (m_axi_bresp_i),
+    .bid (m_axi_bid_i),
+    .buser (m_axi_buser_i),
+    .done_write (wr_done)
+  );
+  // ------------------------------------------------------------
+  // DMA state machine
+  // ------------------------------------------------------------
+  localparam S_IDLE = 3'd0,
+             S_WAIT_RD = 3'd1,
+             S_RUN_RD = 3'd2,
+             S_WAIT_WR = 3'd3,
+             S_RUN_WR = 3'd4,
+             S_DONE = 3'd5;
+  reg [2:0] state;
+  always @(posedge clk) begin
+    if (!resetn) begin
+      state <= S_IDLE;
+      dma_done_set_o <= 1'b0;
+      axi_err_o <= 1'b0;
+      rd_start <= 1'b0;
+      wr_start <= 1'b0;
+      busy_r <= 1'b0;
+      dir_r <= 1'b0;
+      incr_addr_r <= 1'b0;
+      burst_size_r <= 4'd0;
+      addr_r <= {ADDR_WIDTH{1'b0}};
+      rem_bytes_r <= 32'd0;
+      burst_len_r <= 32'd0;
+    end else begin
+      dma_done_set_o <= 1'b0;
+      rd_start <= 1'b0;
+      wr_start <= 1'b0;
+      case (state)
+        S_IDLE: begin
+          axi_err_o <= 1'b0;
+          if (start_pulse) begin
+            dir_r <= dma_dir_i;
+            incr_addr_r <= incr_addr_i;
+            burst_size_r <= burst_size_i;
+            addr_r <= dma_addr_i;
+            rem_bytes_r <= dma_len_i;
+            busy_r <= 1'b1;
+            state <= dma_dir_i ? S_WAIT_WR : S_WAIT_RD;
+          end
+        end
+        S_WAIT_RD: begin
+          if (rem_bytes_r == 0) begin
+            state <= S_DONE;
+          end else if (tx_space_ok) begin
+            burst_len_r <= len_w;
+            rd_start <= 1'b1;
+            state <= S_RUN_RD;
+          end
+        end
+        S_RUN_RD: begin
+          if (m_axi_rvalid_i && m_axi_rready_o && m_axi_rresp_i[1])
+            axi_err_o <= 1'b1;
+          if (rd_done) begin
+            if (incr_addr_r)
+              addr_r <= addr_r + burst_len_r;
+            rem_bytes_r <= rem_bytes_r - burst_len_r;
+            if (axi_err_o || (rem_bytes_r == 0)) begin
+              state <= S_DONE;
+            end else begin
+              state <= S_WAIT_RD;
+            end
+          end
+        end
+        S_WAIT_WR: begin
+          if (rem_bytes_r == 0) begin
+            state <= S_DONE;
+          end else if (rx_data_ok) begin
+            burst_len_r <= len_w;
+            wr_start <= 1'b1;
+            state <= S_RUN_WR;
+          end
+        end
+        S_RUN_WR: begin
+          if (m_axi_bvalid_i && m_axi_bready_o && m_axi_bresp_i[1])
+            axi_err_o <= 1'b1;
+          if (wr_done) begin
+            if (incr_addr_r)
+              addr_r <= addr_r + burst_len_r;
+            rem_bytes_r <= rem_bytes_r - burst_len_r;
+            if (axi_err_o || (rem_bytes_r == 0)) begin
+              state <= S_DONE;
+            end else begin
+              state <= S_WAIT_WR;
+            end
+          end
+        end
+        S_DONE: begin
+          dma_done_set_o <= 1'b1;
+          busy_r <= 1'b0;
+          state <= S_IDLE;
+        end
+        default: state <= S_IDLE;
+      endcase
+    end
+  end
+endmodule
+
+// axi_read_block - AXI4 read burst to TX FIFO
+module axi_read_block #(
+  parameter ADDR_WIDTH = 32,
+  parameter DATA_WIDTH = 32,
+  parameter ID_WIDTH = 4
+) (
+  input wire clk,
+  input wire rst_n,
+  input wire start_bit,
+  input wire [ADDR_WIDTH-1:0] src_addr_reg,
+  input wire [31:0] transfer_size,
+  input wire incr_addr,
+  output wire [ADDR_WIDTH-1:0] araddr,
+  output wire arvalid,
+  input wire arready,
+  output wire [7:0] arlen,
+  output wire [2:0] arsize,
+  output wire [1:0] arburst,
+  output wire [ID_WIDTH-1:0] arid,
+  input wire rvalid,
+  input wire [DATA_WIDTH-1:0] rdata,
+  output wire rready,
+  input wire rlast,
+  input wire [1:0] rresp,
+  input wire [ID_WIDTH-1:0] rid,
+  output wire done_read,
+  input wire tx_full,
+  output wire [DATA_WIDTH-1:0] tx_data_dma,
+  output wire tx_wen
+);
+  localparam IDLE = 0, AR_SEND = 1, R_RECV = 2, COMPLETE = 3;
+  reg [1:0] state;
+  reg [7:0] beat_cnt;
+  reg [ADDR_WIDTH-1:0] addr;
+  assign araddr = addr;
+  assign arvalid = (state == AR_SEND);
+  assign arlen = (transfer_size / (DATA_WIDTH / 8)) - 1;
+  assign arsize = $clog2(DATA_WIDTH / 8);
+  assign arburst = incr_addr ? 2'b01 : 2'b00; // INCR or FIXED
+  assign arid = {ID_WIDTH{1'b0}};
+  assign rready = (state == R_RECV) && !tx_full;
+  assign tx_data_dma = rdata;
+  assign tx_wen = rvalid && rready;
+  assign done_read = (state == COMPLETE);
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      state <= IDLE;
+      addr <= 0;
+      beat_cnt <= 0;
+    end else begin
+      case (state)
+        IDLE: begin
+          if (start_bit) begin
+            addr <= src_addr_reg;
+            state <= AR_SEND;
+            beat_cnt <= 0;
+          end
+        end
+        AR_SEND: begin
+          if (arready) begin
+            state <= R_RECV;
+          end
+        end
+        R_RECV: begin
+          if (rvalid && rready) begin
+            beat_cnt <= beat_cnt + 1;
+            if (rlast) begin
+              state <= COMPLETE;
+            end
+          end
+        end
+        COMPLETE: begin
+          state <= IDLE;
+        end
+        default: state <= IDLE;
+      endcase
+    end
+  end
+endmodule
+
+// axi_write_block - AXI4 write burst from RX FIFO
+module axi_write_block #(
+  parameter ADDR_WIDTH = 32,
+  parameter DATA_WIDTH = 32,
+  parameter ID_WIDTH = 4,
+  parameter USER_WIDTH = 1
+) (
+  input wire clk,
+  input wire rst_n,
+  input wire start_bit,
+  input wire [ADDR_WIDTH-1:0] dst_addr_reg,
+  input wire [31:0] transfer_size,
+  input wire incr_addr,
+  input wire [DATA_WIDTH-1:0] rx_data,
+  input wire rx_empty,
+  output wire rx_ren,
+  output wire [ADDR_WIDTH-1:0] awaddr,
+  output wire awvalid,
+  input wire awready,
+  output wire [7:0] awlen,
+  output wire [2:0] awsize,
+  output wire [1:0] awburst,
+  output wire [ID_WIDTH-1:0] awid,
+  input wire wready,
+  output wire wvalid,
+  output wire [DATA_WIDTH-1:0] wdata,
+  output wire [DATA_WIDTH/8-1:0] wstrb,
+  output wire wlast,
+  output wire [USER_WIDTH-1:0] wuser,
+  input wire bvalid,
+  output wire bready,
+  input wire [1:0] bresp,
+  input wire [ID_WIDTH-1:0] bid,
+  input wire [USER_WIDTH-1:0] buser,
+  output wire done_write
+);
+  localparam IDLE = 0, AW_SEND = 1, W_SEND = 2, B_WAIT = 3, COMPLETE = 4;
+  reg [2:0] state;
+  reg [7:0] beat_cnt;
+  reg [ADDR_WIDTH-1:0] addr;
+  assign awaddr = addr;
+  assign awvalid = (state == AW_SEND);
+  assign awlen = (transfer_size / (DATA_WIDTH / 8)) - 1;
+  assign awsize = $clog2(DATA_WIDTH / 8);
+  assign awburst = incr_addr ? 2'b01 : 2'b00; // INCR or FIXED
+  assign awid = {ID_WIDTH{1'b0}};
+  assign wvalid = (state == W_SEND) && !rx_empty;
+  assign wdata = rx_data;
+  assign wstrb = {DATA_WIDTH/8{1'b1}};
+  assign wlast = (beat_cnt == awlen);
+  assign wuser = {USER_WIDTH{1'b0}};
+  assign bready = (state == B_WAIT);
+  assign rx_ren = wvalid && wready;
+  assign done_write = (state == COMPLETE);
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      state <= IDLE;
+      addr <= 0;
+      beat_cnt <= 0;
+    end else begin
+      case (state)
+        IDLE: begin
+          if (start_bit) begin
+            addr <= dst_addr_reg;
+            state <= AW_SEND;
+            beat_cnt <= 0;
+          end
+        end
+        AW_SEND: begin
+          if (awready) begin
+            state <= W_SEND;
+          end
+        end
+        W_SEND: begin
+          if (wvalid && wready) begin
+            beat_cnt <= beat_cnt + 1;
+            if (wlast) begin
+              state <= B_WAIT;
+            end
+          end
+        end
+        B_WAIT: begin
+          if (bvalid) begin
+            state <= COMPLETE;
+          end
+        end
+        COMPLETE: begin
+          state <= IDLE;
+        end
+        default: state <= IDLE;
+      endcase
+    end
+  end
+endmodule

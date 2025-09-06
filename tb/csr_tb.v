@@ -138,7 +138,9 @@ module csr_tb;
     end
     endtask
 
-    initial begin
+initial begin
+    $dumpfile("csr_tb.vcd");
+    $dumpvars(0, csr_tb);
         reg err;
         psel    = 0;
         penable = 0;
