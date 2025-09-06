@@ -147,23 +147,85 @@ module top_tb;
     end
     endtask
 
+    task apb_read(input [11:0] addr, output [31:0] data);
+    begin
+        @(posedge clk);
+        psel <= 1; penable <= 0; pwrite <= 0; paddr <= addr; pstrb <= 4'h0;
+        @(posedge clk); penable <= 1; @(posedge clk);
+        data = prdata;
+        psel <= 0; penable <= 0; paddr <= 0;
+    end
+    endtask
+
+    // AXI/DMA monitors
+    always @(posedge clk) begin
+        if (m_awvalid && m_awready)
+            $display("[AXI] AW 0x%08h @%0t", m_awaddr, $time);
+        if (m_wvalid && m_wready)
+            $display("[AXI]  W 0x%08h strb=%b @%0t", m_wdata, m_wstrb, $time);
+        if (m_bvalid && m_bready)
+            $display("[AXI]  B resp OK @%0t", $time);
+    end
+
+    // Observe early SCLK activity
+    integer sclk_edges;
+    initial sclk_edges = 0;
+    always @(posedge sclk) begin
+        sclk_edges = sclk_edges + 1;
+        if (sclk_edges <= 8)
+            $display("[QSPI] SCLK posedge #%0d @%0t", sclk_edges, $time);
+    end
+
+    // Decls for CSR probe
+    integer j;
+    reg [31:0] fstat, stat;
+    reg [3:0] rx_lvl_prev, rx_lvl_now;
+    reg busy_prev, busy_now;
+
     // main sequence
     initial begin
+        $display("[top_tb] Starting test at %0t", $time);
         resetn = 0;
         psel = 0; penable=0; pwrite=0; paddr=0; pwdata=0; pstrb=4'hF;
         s_arvalid = 0; s_araddr = 0; s_rready = 0;
         #40 resetn = 1;
 
         // ---------------- Command + DMA read ----------------
-        apb_write(12'h024, 32'h00000880); // cmd_cfg: 3B addr, 8 dummy
+        // cmd_cfg: lanes_cmd=1-1-1, addr_bytes=3B, dummy=8
+        // bits: [11:8]=8 dummy, [7:6]=01 (3B addr), [5:4]=00 (data lanes 1), [3:2]=00, [1:0]=00
+        apb_write(12'h024, 32'h00000840);
         apb_write(12'h028, 32'h0000000B); // opcode
         apb_write(12'h02C, 32'h00000000); // addr
         apb_write(12'h030, 32'h00000004); // len =4
-        apb_write(12'h038, 32'h00000004); // dma cfg burst=4
+        apb_write(12'h038, 32'h00000034); // dma cfg: burst=4, dir=read_to_mem, incr=1
         apb_write(12'h03C, 32'h00000000); // dma dst addr
         apb_write(12'h040, 32'h00000004); // dma len
-        apb_write(12'h004, 32'h00000041); // enable + dma_en
-        apb_write(12'h004, 32'h00000141); // trigger
+        // Ensure CTRL.enable=1 first
+        apb_write(12'h004, 32'h00000001);
+        // Enable + dma_en + trigger in the same write to avoid busy gating
+        apb_write(12'h004, 32'h00000141);
+
+        // Probe STATUS busy and RX FIFO level via CSR every few cycles
+        // FIFO_STAT layout: {22'd0, rx_full, tx_empty, rx_level[3:0], tx_level[3:0]}
+        rx_lvl_prev = 4'd0;
+        busy_prev   = 1'b0;
+        for (j = 0; j < 400; j = j + 1) begin
+            apb_read(12'h008, stat); // STATUS
+            busy_now = stat[11];
+            if (j < 8) $display("[CSR] STATUS=0x%08h @%0t", stat, $time);
+            if (busy_now != busy_prev) begin
+                $display("[CSR] busy %0d -> %0d @%0t (STATUS=0x%08h)", busy_prev, busy_now, $time, stat);
+                busy_prev = busy_now;
+            end
+            apb_read(12'h04C, fstat);
+            rx_lvl_now = (fstat[7:4]);
+            if (j < 8) $display("[CSR] FIFO_STAT=0x%08h @%0t", fstat, $time);
+            if (rx_lvl_now != rx_lvl_prev) begin
+                $display("[CSR] RX level %0d -> %0d @%0t (FIFO_STAT=0x%08h)", rx_lvl_prev, rx_lvl_now, $time, fstat);
+                rx_lvl_prev = rx_lvl_now;
+            end
+        end
+
         repeat (50) @(posedge clk);
         if (mem[0] !== 32'hFFFF_FFFF) $fatal(1, "DMA read failed");
 
@@ -177,5 +239,12 @@ module top_tb;
 
         $display("Top-level integration test passed");
         $finish;
+    end
+
+    // Global timeout to prevent stalls
+    initial begin
+      #3_000_000; // 3 ms cutoff
+      $display("[top_tb] Global timeout reached — finishing.");
+      $finish;
     end
 endmodule

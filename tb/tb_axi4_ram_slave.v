@@ -65,7 +65,7 @@ module tb_axi4_ram_slave;
 
   reg [31:0] tmp;
 
-  initial begin
+initial begin
     $dumpfile("axi4_ram_slave_tb.vcd");
     $dumpvars(0, tb_axi4_ram_slave);
     resetn = 0;
@@ -90,6 +90,13 @@ module tb_axi4_ram_slave;
     axi_read(32'h0, tmp);       if (tmp !== 32'hDEBB_BEAA) $fatal(1, "WSTRB[2] failed");
 
     $display("AXI4 RAM slave test passed");
+    $finish;
+  end
+
+  // Global timeout to prevent stalls
+  initial begin
+    #1_000_000; // 1 ms cutoff
+    $display("[tb_axi4_ram_slave] Global timeout reached — finishing.");
     $finish;
   end
 endmodule

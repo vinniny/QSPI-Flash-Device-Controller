@@ -75,6 +75,46 @@ module qspi_controller #(
 );
 
   // ---------------------------------------------------------
+  // Optional debug instrumentation (guarded)
+  // Define QSPI_DEBUG at compile time to enable prints
+  // Example: iverilog -D QSPI_DEBUG ...
+  // ---------------------------------------------------------
+`ifdef QSPI_DEBUG
+  reg cmd_start_q, fsm_start_q, fsm_done_q, fsm_rx_wen_q;
+  reg [LEVEL_WIDTH-1:0] fifo_rx_level_q;
+  always @(posedge clk) begin
+    if (!resetn) begin
+      cmd_start_q     <= 1'b0;
+      fsm_start_q     <= 1'b0;
+      fsm_done_q      <= 1'b0;
+      fsm_rx_wen_q    <= 1'b0;
+      fifo_rx_level_q <= {LEVEL_WIDTH{1'b0}};
+    end else begin
+      if (cmd_start_pulse && !cmd_start_q)
+        $display("[QSPI_CTL] cmd_start: op=%02h addr=%08h len=%0d dma_en=%0d @%0t",
+                 opcode_w, cmd_addr_w, cmd_len_w, dma_en_w, $time);
+      if (fsm_start_w && !fsm_start_q)
+        $display("[QSPI_CTL] fsm_start: op=%02h addr=%08h len=%0d clk_div=%0d @%0t",
+                 fsm_opcode_w, fsm_addr_w, fsm_len_w, fsm_clk_div_w, $time);
+      if (fsm_done_w && !fsm_done_q)
+        $display("[QSPI_CTL] fsm_done @%0t", $time);
+      if (fsm_rx_wen_w && !fsm_rx_wen_q)
+        $display("[QSPI_CTL] first RX: data=%08h level=%0d io1=%b @%0t",
+                 fsm_rx_data_w, fifo_rx_level_w, io[1], $time);
+      if (fifo_rx_level_w != fifo_rx_level_q)
+        $display("[QSPI_CTL] fifo_rx_level %0d -> %0d @%0t",
+                 fifo_rx_level_q, fifo_rx_level_w, $time);
+
+      cmd_start_q     <= cmd_start_pulse;
+      fsm_start_q     <= fsm_start_w;
+      fsm_done_q      <= fsm_done_w;
+      fsm_rx_wen_q    <= fsm_rx_wen_w;
+      fifo_rx_level_q <= fifo_rx_level_w;
+    end
+  end
+`endif
+
+  // ---------------------------------------------------------
   // Local parameters and wires
   // ---------------------------------------------------------
   localparam integer LEVEL_WIDTH = $clog2(FIFO_DEPTH+1);
@@ -566,4 +606,3 @@ module qspi_controller #(
   );
 
 endmodule
-

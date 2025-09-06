@@ -59,6 +59,10 @@ module top_cmd_tb;
   wire        cs_n;
   wire [3:0]  io;
 
+  // Pull-ups for HOLD#/SIO3 and WP# pins on the external flash model
+  pullup pu_hold (io[3]);
+  pullup pu_wp   (io[2]);
+
   wire irq;
 
   // DUT
@@ -145,7 +149,8 @@ module top_cmd_tb;
   // Helpers
   task ctrl_enable(); begin apb_write(CTRL, 32'h0000_0001); end endtask
   // optional helpers could be added here for CPOL/CPHA
-  task ctrl_set_cpha1(); begin apb_write(CTRL, 32'h0000_0003); end endtask
+  // Use SPI Mode 0 with the Macronix MX25L model
+  task ctrl_set_mode0(); begin apb_write(CTRL, 32'h0000_0001); end endtask
   task ctrl_trigger(); begin apb_write(CTRL, 32'h0000_0101); end endtask
   task ctrl_dma_enable(); begin apb_write(CTRL, 32'h0000_0041); end endtask
   task set_cs_auto(); begin apb_write(CS_CTRL, 32'h0000_0001); end endtask
@@ -196,11 +201,13 @@ module top_cmd_tb;
     clk=0; resetn=0; psel=0; penable=0; pwrite=0; paddr=0; pwdata=0; pstrb=0;
     repeat (10) @(posedge clk);
     resetn = 1;
+    // Macronix model requires tVSL ~800us after power-up
+    #900_000;
 
     ctrl_enable();
     // slow down SCLK for external flash timing
     apb_write(12'h014, 32'h00000004); // CLK_DIV
-    ctrl_set_cpha1();
+    ctrl_set_mode0();
     set_cs_auto();
 
     // 1) JEDEC ID (0x9F) - read 4 bytes, check manufacturer (0xC2)

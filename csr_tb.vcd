@@ -1,0 +1,628 @@
+$date
+	Sat Sep  6 15:21:21 2025
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module csr_tb $end
+$var wire 1 ! pready $end
+$var wire 1 " pslverr $end
+$var wire 32 # prdata [31:0] $end
+$var wire 1 $ enable_o $end
+$var wire 1 % cmd_start $end
+$var reg 1 & busy $end
+$var reg 1 ' err $end
+$var reg 12 ( paddr [11:0] $end
+$var reg 1 ) pclk $end
+$var reg 1 * penable $end
+$var reg 1 + presetn $end
+$var reg 1 , psel $end
+$var reg 4 - pstrb [3:0] $end
+$var reg 32 . pwdata [31:0] $end
+$var reg 1 / pwrite $end
+$var reg 32 0 rdata [31:0] $end
+$scope module dut $end
+$var wire 32 1 CLKDIV_WMASK [31:0] $end
+$var wire 32 2 CMDCFG_WMASK [31:0] $end
+$var wire 32 3 CMDDMY_WMASK [31:0] $end
+$var wire 32 4 CMDOP_WMASK [31:0] $end
+$var wire 32 5 CSCTRL_WMASK [31:0] $end
+$var wire 32 6 CTRL_WMASK [31:0] $end
+$var wire 32 7 DMACFG_WMASK [31:0] $end
+$var wire 32 8 XIPCFG_WMASK [31:0] $end
+$var wire 32 9 XIPCMD_WMASK [31:0] $end
+$var wire 12 : a [11:0] $end
+$var wire 1 ; access_phase $end
+$var wire 1 < axi_err_i $end
+$var wire 1 & busy_i $end
+$var wire 32 = cmd_addr_o [31:0] $end
+$var wire 1 > cmd_done_i $end
+$var wire 1 ? cmd_done_set_i $end
+$var wire 32 @ cmd_len_o [31:0] $end
+$var wire 1 % cmd_start_o $end
+$var wire 1 A cmd_trig_ok $end
+$var wire 1 B cmd_trig_wr $end
+$var wire 1 % cmd_trigger_clr_i $end
+$var wire 32 C dma_addr_o [31:0] $end
+$var wire 1 D dma_done_i $end
+$var wire 1 E dma_done_set_i $end
+$var wire 32 F dma_len_o [31:0] $end
+$var wire 1 G err_set_i $end
+$var wire 32 H fifo_rx_data_i [31:0] $end
+$var wire 1 I fifo_rx_full_set_i $end
+$var wire 1 J fifo_rx_re_o $end
+$var wire 32 K fifo_tx_data_o [31:0] $end
+$var wire 1 L fifo_tx_empty_set_i $end
+$var wire 1 M fifo_tx_we_o $end
+$var wire 1 N mode_en_cfg_o $end
+$var wire 1 O overrun_i $end
+$var wire 12 P paddr [11:0] $end
+$var wire 1 ) pclk $end
+$var wire 1 * penable $end
+$var wire 1 ! pready $end
+$var wire 1 + presetn $end
+$var wire 1 , psel $end
+$var wire 4 Q pstrb [3:0] $end
+$var wire 4 R pstrb_eff [3:0] $end
+$var wire 32 S pwdata [31:0] $end
+$var wire 1 / pwrite $end
+$var wire 1 T read_phase $end
+$var wire 1 U rx_full_i $end
+$var wire 4 V rx_level_i [3:0] $end
+$var wire 1 W setup_phase $end
+$var wire 1 X timeout_i $end
+$var wire 1 Y tx_empty_i $end
+$var wire 4 Z tx_level_i [3:0] $end
+$var wire 1 [ underrun_i $end
+$var wire 1 \ wp_en_o $end
+$var wire 1 ] wr_ok $end
+$var wire 1 ^ write_phase $end
+$var wire 1 _ xip_active_i $end
+$var wire 8 ` xip_write_op_o [7:0] $end
+$var wire 1 a xip_write_en_o $end
+$var wire 8 b xip_read_op_o [7:0] $end
+$var wire 1 c xip_mode_en_o $end
+$var wire 8 d xip_mode_bits_o [7:0] $end
+$var wire 1 e xip_en_o $end
+$var wire 4 f xip_dummy_cycles_o [3:0] $end
+$var wire 2 g xip_data_lanes_o [1:0] $end
+$var wire 1 h xip_cont_read_o $end
+$var wire 2 i xip_addr_bytes_o [1:0] $end
+$var wire 1 j quad_en_o $end
+$var wire 8 k opcode_o [7:0] $end
+$var wire 1 l mode_en_o $end
+$var wire 8 m mode_bits_o [7:0] $end
+$var wire 1 n lsb_first_o $end
+$var wire 1 o is_write_o $end
+$var wire 1 p irq $end
+$var wire 5 q int_en_o [4:0] $end
+$var wire 1 r incr_addr_o $end
+$var wire 1 s hold_en_o $end
+$var wire 8 t extra_dummy_o [7:0] $end
+$var wire 1 $ enable_o $end
+$var wire 4 u dummy_cycles_o [3:0] $end
+$var wire 1 v dma_en_o $end
+$var wire 1 w dma_dir_o $end
+$var wire 2 x data_lanes_o [1:0] $end
+$var wire 2 y cs_level_o [1:0] $end
+$var wire 2 z cs_delay_o [1:0] $end
+$var wire 1 { cs_auto_o $end
+$var wire 1 | cpol_o $end
+$var wire 1 } cpha_o $end
+$var wire 2 ~ cmd_lanes_o [1:0] $end
+$var wire 3 !" clk_div_o [2:0] $end
+$var wire 4 "" burst_size_o [3:0] $end
+$var wire 2 #" addr_lanes_o [1:0] $end
+$var wire 2 $" addr_bytes_o [1:0] $end
+$var reg 32 %" clk_div_reg [31:0] $end
+$var reg 32 &" cmd_addr_reg [31:0] $end
+$var reg 32 '" cmd_cfg_reg [31:0] $end
+$var reg 1 (" cmd_done_latched $end
+$var reg 32 )" cmd_dummy_reg [31:0] $end
+$var reg 32 *" cmd_len_reg [31:0] $end
+$var reg 32 +" cmd_op_reg [31:0] $end
+$var reg 1 ," cmd_trig_q $end
+$var reg 32 -" cs_ctrl_reg [31:0] $end
+$var reg 32 ." ctrl_reg [31:0] $end
+$var reg 32 /" dma_addr_reg [31:0] $end
+$var reg 32 0" dma_cfg_reg [31:0] $end
+$var reg 1 1" dma_done_latched $end
+$var reg 32 2" dma_len_reg [31:0] $end
+$var reg 32 3" err_stat_reg [31:0] $end
+$var reg 32 4" int_en_reg [31:0] $end
+$var reg 32 5" int_stat_reg [31:0] $end
+$var reg 32 6" prdata [31:0] $end
+$var reg 1 " pslverr $end
+$var reg 1 7" ro_addr $end
+$var reg 1 8" valid_addr $end
+$var reg 32 9" xip_cfg_reg [31:0] $end
+$var reg 32 :" xip_cmd_reg [31:0] $end
+$scope function apply_strb $end
+$var reg 32 ;" cur [31:0] $end
+$var reg 32 <" data [31:0] $end
+$upscope $end
+$scope begin $unm_blk_31 $end
+$var reg 32 =" next_ctrl [31:0] $end
+$upscope $end
+$upscope $end
+$scope task apb_read $end
+$var reg 12 >" addr [11:0] $end
+$var reg 32 ?" data [31:0] $end
+$upscope $end
+$scope task apb_write $end
+$var reg 12 @" addr [11:0] $end
+$var reg 32 A" data [31:0] $end
+$var reg 1 B" err $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+xB"
+bx A"
+bx @"
+bx ?"
+bx >"
+bx ="
+bx <"
+bx ;"
+b0 :"
+b0 9"
+18"
+17"
+b0 6"
+b0 5"
+b0 4"
+b0 3"
+b0 2"
+01"
+b0 0"
+b0 /"
+b0 ."
+b1 -"
+0,"
+b0 +"
+b0 *"
+b0 )"
+0("
+b0 '"
+b0 &"
+b0 %"
+b0 $"
+b0 #"
+b0 ""
+b0 !"
+b0 ~
+0}
+0|
+1{
+b0 z
+b0 y
+b0 x
+0w
+0v
+b0 u
+b0 t
+0s
+0r
+b0 q
+0p
+0o
+0n
+b0 m
+0l
+b0 k
+0j
+b0 i
+0h
+b0 g
+b0 f
+0e
+b0 d
+0c
+b0 b
+0a
+b0 `
+0_
+0^
+0]
+0\
+0[
+b0 Z
+1Y
+0X
+0W
+b0 V
+0U
+0T
+b0 S
+b1111 R
+b1111 Q
+b0 P
+0O
+0N
+0M
+0L
+b0 K
+0J
+0I
+b0 H
+0G
+b0 F
+0E
+0D
+b0 C
+0B
+0A
+b0 @
+0?
+0>
+b0 =
+0<
+0;
+b0 :
+b111111111111111111111111 9
+b11111111111111 8
+b111111 7
+b1011111111 6
+b11111 5
+b1111111111111111 4
+b11111111 3
+b1111111111111 2
+b1111 1
+bx 0
+0/
+b0 .
+b1111 -
+0,
+0+
+0*
+0)
+b0 (
+x'
+0&
+0%
+0$
+b0 #
+0"
+1!
+$end
+#5000
+1)
+#10000
+0)
+#15000
+1)
+#20000
+0)
+b0 >"
+1+
+#25000
+1W
+1,
+1)
+#30000
+0)
+#35000
+b11010000000000001000010000001 #
+b11010000000000001000010000001 6"
+0W
+1T
+1;
+1*
+1)
+#40000
+0)
+#45000
+b0 #
+b0 6"
+0T
+0;
+0*
+0,
+b1 A"
+b100 @"
+b11010000000000001000010000001 0
+b11010000000000001000010000001 ?"
+1)
+#50000
+0)
+#55000
+07"
+18"
+1W
+b1 K
+b1 .
+b1 S
+b100 :
+b100 (
+b100 P
+1/
+1,
+1)
+#60000
+0)
+#65000
+1]
+0W
+1^
+1;
+1*
+1)
+#70000
+0)
+#75000
+0]
+1$
+17"
+18"
+0^
+0;
+b1 ."
+b0 K
+b0 .
+b0 S
+b0 :
+b0 (
+b0 P
+0/
+0*
+0,
+b1 ="
+b0 ;"
+b1 <"
+0'
+0B"
+1)
+#80000
+0)
+#85000
+b100000001 A"
+1)
+#90000
+0)
+#95000
+07"
+18"
+1W
+b100000001 K
+b100000001 .
+b100000001 S
+b100 :
+b100 (
+b100 P
+1/
+1,
+1)
+#100000
+0)
+#105000
+1A
+1B
+1]
+0W
+1^
+1;
+1*
+1)
+#110000
+0)
+#115000
+0A
+0]
+0B
+17"
+18"
+0^
+0;
+1%
+1,"
+b0 K
+b0 .
+b0 S
+b0 :
+b0 (
+b0 P
+0/
+0*
+0,
+b1 ="
+b1 ;"
+b100000001 <"
+1)
+#120000
+0)
+#125000
+0%
+0,"
+1&
+1)
+#130000
+0)
+#135000
+07"
+18"
+1W
+b100000001 K
+b100000001 .
+b100000001 S
+b100 :
+b100 (
+b100 P
+1/
+1,
+1)
+#140000
+0)
+#145000
+1B
+1]
+1"
+0W
+1^
+1;
+1*
+1)
+#150000
+0)
+#155000
+0]
+0B
+17"
+18"
+0^
+0;
+b0 K
+b0 .
+b0 S
+b0 :
+b0 (
+b0 P
+0/
+0*
+0,
+0A
+0"
+b1 ="
+b11 A"
+0&
+1'
+1B"
+1)
+#160000
+0)
+#165000
+07"
+18"
+1W
+b11 K
+b11 .
+b11 S
+b100 :
+b100 (
+b100 P
+1/
+1,
+1)
+#170000
+0)
+#175000
+1]
+0W
+1^
+1;
+1*
+1)
+#180000
+0)
+#185000
+0]
+1e
+17"
+18"
+0^
+0;
+b11 ."
+b0 K
+b0 .
+b0 S
+b0 :
+b0 (
+b0 P
+0/
+0*
+0,
+b11 ="
+b11 <"
+0'
+0B"
+1)
+#190000
+0)
+#195000
+b100000011 A"
+1)
+#200000
+0)
+#205000
+07"
+18"
+1W
+b100000011 K
+b100000011 .
+b100000011 S
+b100 :
+b100 (
+b100 P
+1/
+1,
+1)
+#210000
+0)
+#215000
+1B
+1]
+0W
+1^
+1;
+1*
+1)
+#220000
+0)
+#225000
+0]
+0B
+17"
+18"
+0^
+0;
+b0 K
+b0 .
+b0 S
+b0 :
+b0 (
+b0 P
+0/
+0*
+0,
+b11 ="
+b11 ;"
+b100000011 <"
+1)
+#230000
+0)
+#235000
+b0 A"
+b0 @"
+1)
+#240000
+0)
+#245000
+1W
+1/
+1,
+1)
+#250000
+0)
+#255000
+1"
+0W
+1^
+1;
+1*
+1)
+#260000
+0)
+#265000
+0"
+0^
+0;
+0/
+0*
+0,
+1'
+1B"
+1)

@@ -68,6 +68,24 @@ module dma_engine #(
 );
 
   // ------------------------------------------------------------
+  // Optional debug prints (guarded). Define DEBUG_DMA to enable.
+  // Example: iverilog -D DEBUG_DMA ...
+  // ------------------------------------------------------------
+`ifdef DEBUG_DMA
+  reg start_q;
+  always @(posedge clk) begin
+    if (!resetn) begin
+      start_q <= 1'b0;
+    end else begin
+      if (start_pulse && !start_q)
+        $display("[DMA] start: dir=%0d addr=%08h len=%0d burst=%0d @%0t",
+                 dma_dir_i, dma_addr_i, dma_len_i, burst_size_i, $time);
+      start_q <= start_pulse;
+    end
+  end
+`endif
+
+  // ------------------------------------------------------------
   // Derived constants and FIFO status
   // ------------------------------------------------------------
   localparam [LEVEL_WIDTH-1:0] TX_DEPTH_LEVEL = TX_FIFO_DEPTH[LEVEL_WIDTH-1:0];
@@ -246,6 +264,10 @@ module dma_engine #(
         end
 
         S_WAIT_WR: begin
+`ifdef DEBUG_DMA
+          if (rem_bytes_r != 0 && rx_data_ok)
+            $display("[DMA] WR: rx_ok beats=%0d len=%0d @%0t", beats_w, len_w, $time);
+`endif
           if (rem_bytes_r == 0) begin
             state <= S_DONE;
           end else if (rx_data_ok) begin
@@ -259,6 +281,9 @@ module dma_engine #(
           if (bvalid_i && bready_o && bresp_i[1])
             axi_err_o <= 1'b1;
           if (wr_done) begin
+`ifdef DEBUG_DMA
+            $display("[DMA] WR done beat bytes=%0d rem_before=%0d @%0t", burst_len_r, rem_bytes_r, $time);
+`endif
             if (incr_addr_r)
               addr_r <= addr_r + burst_len_r;
             if (axi_err_o || (rem_bytes_r <= burst_len_r)) begin
@@ -402,6 +427,9 @@ module axi_write_block (
     output reg          busy,
     output reg          done
 );
+`ifdef DEBUG_DMA
+  reg aw_seen;
+`endif
   localparam IDLE=2'd0, ADDR=2'd1, DATA=2'd2, RESP=2'd3;
   reg [1:0] state;
   reg [31:0] addr_reg;
@@ -451,6 +479,10 @@ module axi_write_block (
         end
         ADDR: begin
           if (awready) begin
+`ifdef DEBUG_DMA
+            $display("[DMA] AW @%0t addr=%08h", $time, awaddr);
+            aw_seen <= 1'b1;
+`endif
             // Issue FIFO read now; data becomes valid next cycle
             if (!empty) begin
               rd_en      <= 1'b1;
@@ -479,6 +511,9 @@ module axi_write_block (
           end
 
           if (wvalid && wready) begin
+`ifdef DEBUG_DMA
+            $display("[DMA]  W @%0t data=%08h", $time, wdata);
+`endif
             bready      <= 1'b1;
             hold_bready <= 1'b1;
             count       <= count + 16'd4;
@@ -490,6 +525,9 @@ module axi_write_block (
         RESP: begin
           bready <= hold_bready; // keep asserted until response consumed
           if (bvalid && bready) begin
+`ifdef DEBUG_DMA
+            $display("[DMA]  B @%0t", $time);
+`endif
             hold_bready <= 1'b0;
             if (count < transfer_size) begin
               // More beats to go: start next address phase

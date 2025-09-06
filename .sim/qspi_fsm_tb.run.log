@@ -1,0 +1,7 @@
+VCD info: dumpfile qspi_fsm_tb.vcd opened for output.
+[qspi_fsm_tb] Starting
+[qspi_fsm_tb] Pulse start for WREN
+[qspi_fsm_tb] CS low observed at 45000
+[qspi_fsm_tb] Done observed at 215000
+[qspi_fsm_tb] cs_n after done (5 cycles later) = 1
+[qspi_fsm_tb] Global timeout reached — finishing.

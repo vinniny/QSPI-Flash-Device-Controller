@@ -65,6 +65,13 @@ module dma_engine_tb;
     $dumpvars(0, dma_engine_tb);
   end
 
+  // Global timeout to prevent stalls
+  initial begin
+    #1_000_000; // 1 ms cutoff
+    $display("[dma_engine_tb] Global timeout reached — finishing.");
+    $finish;
+  end
+
   // Utilities
   task kick_dma(input [31:0] addr, input [31:0] len, input dir, input [3:0] bsz, input inc);
   begin

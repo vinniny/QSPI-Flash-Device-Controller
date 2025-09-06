@@ -215,7 +215,8 @@ localparam [3:0]
     DUMMY_BIT = 4'd5,
     DATA_BIT  = 4'd6,
     CS_HOLD   = 4'd7,
-    CS_DONE   = 4'd8;
+    CS_DONE   = 4'd8,
+    ERASE     = 4'd9;  // explicit state for erase-type ops (e.g., 0x20 sector erase)
 
 reg [3:0] state, state_n;
 reg       cs_n_n;
@@ -260,6 +261,13 @@ always @* begin
     rx_data_fifo = 32'b0;
     cs_n_n       = cs_n;
 
+    // Identify erase-type commands (sector/block/chip)
+    // Used to optionally enter ERASE state after address phase
+    // Supported opcodes: 0x20 (4KB sector), 0xD8 (64KB block), 0xC7/0x60 (chip erase)
+    // For non-addressed erases (chip erase), transition may occur directly after CMD_BIT
+    // when len_bytes==0 and no dummy/mode phases are configured.
+    // This FSM does not time the erase operation; higher-level logic polls status.
+    
     case (state)
         IDLE: begin
             cs_n_n = 1'b1;
@@ -306,6 +314,9 @@ always @* begin
                         shreg_n   = dir ? 32'b0 : tx_data_fifo;
                         io_oe_n   = dir ? 4'b0000 : lane_mask(data_lanes_eff);
                         byte_cnt_n = 32'd0;
+                    end else if ((cmd_opcode==8'h20) || (cmd_opcode==8'hD8) || (cmd_opcode==8'hC7) || (cmd_opcode==8'h60)) begin
+                        // Chip/block erase opcodes without address phase
+                        state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
                     end
@@ -336,6 +347,9 @@ always @* begin
                         shreg_n     = dir ? 32'b0 : tx_data_fifo;
                         io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
                         byte_cnt_n  = 32'd0;
+                    end else if ((cmd_opcode==8'h20) || (cmd_opcode==8'hD8)) begin
+                        // Addressed erase commands (sector/block)
+                        state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
                     end
@@ -402,7 +416,8 @@ always @* begin
                         byte_cnt_n = byte_cnt + 4;
                         if (!rx_full) begin
                             rx_wen = 1'b1;
-                            rx_data_fifo = shreg;
+                            // Capture the fully updated shift register value
+                            rx_data_fifo = shreg_n;
                         end
                         shreg_n = 32'b0;
                     end
@@ -441,6 +456,15 @@ always @* begin
         CS_DONE: begin
             cs_n_n  = 1'b1;
             state_n = IDLE;
+        end
+
+        // Erase state: no data transfer; maintain CS low for one cycle
+        // and then finish the command to allow the device/model to latch
+        // the erase request on CS rising edge.
+        ERASE: begin
+            cs_n_n    = 1'b0;
+            sclk_en_n = 1'b0;
+            state_n   = CS_DONE;
         end
 
         default: state_n = IDLE;

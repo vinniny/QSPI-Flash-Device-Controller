@@ -78,4 +78,11 @@ module fifo_tx_tb;
         $display("FIFO TX test passed");
         $finish;
     end
+
+    // Global timeout to prevent stalls
+    initial begin
+        #1_000_000; // 1 ms cutoff
+        $display("[fifo_tx_tb] Global timeout reached — finishing.");
+        $finish;
+    end
 endmodule

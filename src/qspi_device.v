@@ -1,9 +1,11 @@
 // qspi_device.v - Simplified behavioral QSPI flash model
 // Supports a minimal set of commands to exercise the controller/testbenches:
 // - 0x9F: Read JEDEC ID (returns 0xC2 on IO1)
-// - 0x05: Read Status (bit0=WIP)
+// - 0x05: Read Status (bit0=WIP, bit1=WEL)
 // - 0x06/0x04: WREN/WRDI (set/clear WEL in status[1])
 // - 0x03/0x0B: Read (1-1-1) and Fast Read with 8 dummy cycles
+// - 0x02: Page Program (1-1-1) — captures input bytes to memory
+// - 0x20: Sector Erase (4KB) — sets sector bytes to 0xFF
 
 module qspi_device (
     input  wire qspi_sclk,
@@ -94,7 +96,8 @@ end
         ST_DUMMY      = 4'd3,
         ST_DATA_READ  = 4'd4,
         ST_STATUS     = 4'd5,
-        ST_ID_READ    = 4'd6;
+        ST_ID_READ    = 4'd6,
+        ST_DATA_WRITE = 4'd7;
 
     reg [3:0]            state;
     reg [7:0]            cmd_reg;
@@ -106,21 +109,41 @@ end
     reg [5:0]            bit_cnt;     // 0..7
     reg [1:0]            addr_bytes;  // count address bytes captured
 
-    // Reset key state on CS deassert
+    // Simple power-on init
+    initial begin
+        status_reg   = 8'h00;
+        id_reg       = 24'hC22017;
+    end
+
+    // CS# deassert: terminate any in-progress command; keep status persistent
+    reg erase_pending;
     always @(posedge qspi_cs_n) begin
         state        <= ST_IDLE;
         io_oe        <= 4'b0000;
         io_do        <= 4'b0000;
-        status_reg   <= 8'h00;
-        id_reg       <= 24'hC22017;
         cmd_reg      <= 8'h00;
         shift_in     <= 8'h00;
         shift_out    <= 8'h00;
         dummy_cycles <= 5'd0;
-        addr_reg     <= {ADDR_BITS{1'b0}};
         addr_bytes   <= 2'd0;
         bit_cnt      <= 6'd0;
         data_lanes   <= 2'd0; // default 1 lane
+
+        // Finish program/erase: clear WIP/WEL
+        if (status_reg[0]) begin
+            status_reg[0] <= 1'b0; // WIP
+            status_reg[1] <= 1'b0; // WEL
+        end
+
+        // Perform sector erase on CS# rising, if requested
+        if (erase_pending) begin
+            integer s;
+            integer base;
+            base = {addr_reg[ADDR_BITS-1:12], 12'h000};
+            for (s = 0; s < SECTOR_SIZE; s = s + 1)
+                memory[base + s] = 8'hFF;
+            erase_pending = 1'b0;
+        end
     end
 
     // Operate on rising SCLK when CS# is low
@@ -174,6 +197,17 @@ end
                                 dummy_cycles <= 5'd8;
                                 data_lanes   <= 2'd2; // 4 lanes
                             end
+                            8'h02: begin
+                                // Page Program (1-1-1)
+                                // Require WREN previously; data captured after address
+                                state        <= ST_ADDR;
+                                dummy_cycles <= 5'd0;
+                            end
+                            8'h20: begin
+                                // Sector Erase (4KB); capture address, erase on CS# deassert
+                                state        <= ST_ADDR;
+                                dummy_cycles <= 5'd0;
+                            end
                             default: state <= ST_IDLE;
                         endcase
                     end
@@ -189,7 +223,17 @@ end
                         addr_bytes <= addr_bytes + 1'b1;
                         if (addr_bytes == 2'd2) begin
                             // 3 bytes captured
-                            if (dummy_cycles != 0) begin
+                            if (cmd_reg == 8'h02) begin
+                                // Begin program (ignore WEL in simplified model)
+                                state          <= ST_DATA_WRITE;
+                                bit_cnt        <= 6'd0;
+                                status_reg[0]  <= 1'b1; // WIP
+                            end else if (cmd_reg == 8'h20) begin
+                                // Mark erase pending and set WIP (ignore WEL in simplified model)
+                                erase_pending <= 1'b1;
+                                status_reg[0] <= 1'b1;
+                                state <= ST_IDLE;
+                            end else if (dummy_cycles != 0) begin
                                 state   <= ST_DUMMY;
                             end else begin
                                 state     <= ST_DATA_READ;
@@ -220,6 +264,17 @@ end
 
                 ST_ID_READ: begin
                     // Shifting handled on trailing edge
+                end
+
+                ST_DATA_WRITE: begin
+                    // Capture incoming data bytes on IO0 and program into memory
+                    shift_in <= {shift_in[6:0], io_di[0]};
+                    bit_cnt  <= bit_cnt + 1'b1;
+                    if (bit_cnt == 6'd7) begin
+                        bit_cnt          <= 6'd0;
+                        memory[addr_reg] <= {shift_in[6:0], io_di[0]};
+                        addr_reg         <= addr_reg + 1'b1;
+                    end
                 end
 
                 default: state <= ST_IDLE;

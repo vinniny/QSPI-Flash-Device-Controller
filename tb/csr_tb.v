@@ -16,6 +16,7 @@ module csr_tb;
     wire enable_o;
     wire cmd_start;
     reg busy;
+    reg err;
 
     csr dut (
         .pclk(pclk),
@@ -141,7 +142,6 @@ module csr_tb;
 initial begin
     $dumpfile("csr_tb.vcd");
     $dumpvars(0, csr_tb);
-        reg err;
         psel    = 0;
         penable = 0;
         pwrite  = 0;
@@ -185,6 +185,13 @@ initial begin
         if (!err) $fatal(1, "PSLVERR not asserted on RO write");
 
         $display("CSR test passed");
+        $finish;
+    end
+
+    // Global timeout to prevent stalls
+    initial begin
+        #1_000_000; // 1 ms cutoff
+        $display("[csr_tb] Global timeout reached — finishing.");
         $finish;
     end
 endmodule
