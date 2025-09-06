@@ -316,7 +316,7 @@ always @* begin
         ADDR_BIT: begin
             sclk_en_n = 1'b1;
             io_oe_n   = lane_mask(lanes);
-            if (sample_pulse)
+            if (shift_pulse)
                 shreg_n = shreg << lanes;
             if (bit_tick) begin
                 bit_cnt_n = bit_cnt + {3'b000, lanes};
@@ -346,7 +346,7 @@ always @* begin
         MODE_BIT: begin
             sclk_en_n = 1'b1;
             io_oe_n   = lane_mask(lanes);
-            if (sample_pulse)
+            if (shift_pulse)
                 shreg_n = shreg << lanes;
             if (bit_tick) begin
                 bit_cnt_n = bit_cnt + {3'b000, lanes};
@@ -414,7 +414,7 @@ always @* begin
                     end
                 end
             end else begin
-                if (sample_pulse)
+                if (shift_pulse)
                     shreg_n = shreg << lanes;
                 if (bit_tick) begin
                     bit_cnt_n = bit_cnt + {3'b000, lanes};
