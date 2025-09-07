@@ -82,7 +82,7 @@ module int_csr_ce_fsm_tb;
   qspi_fsm u_fsm (
     .clk(clk), .resetn(resetn), .start(fsm_start_w), .done(fsm_done_w),
     .cmd_lanes_sel(cmd_lanes_w), .addr_lanes_sel(addr_lanes_w), .data_lanes_sel(data_lanes_w), .addr_bytes_sel(addr_bytes_w),
-    .mode_en(1'b0), .dummy_cycles(dummy_cycles_w), .dir(1'b1), .quad_en(1'b0), .cs_auto(1'b1), .xip_cont_read(1'b0),
+    .mode_en(1'b0), .dummy_cycles(dummy_cycles_w), .dir(1'b1), .quad_en(1'b0), .cs_auto(1'b1), .cs_delay(2'b00), .xip_cont_read(1'b0),
     .cmd_opcode(opcode_w), .mode_bits(8'h00), .addr(cmd_addr_w), .len_bytes(cmd_len_w),
     .clk_div({29'd0, clk_div_w}), .cpol(cpol_w), .cpha(cpha_w),
     .tx_data_fifo(fifo_tx_rd_data_w), .tx_empty(fifo_tx_empty_w), .tx_ren(fifo_tx_rd_en_w),

@@ -183,6 +183,9 @@ module xip_engine #(
           busy_r     <= 1'b0;
           tx_empty_o <= 1'b1;
           if (arvalid_i && ar_ready_w) begin
+`ifdef XIP_DEBUG
+            $display("[XIP] %0t AR addr=%08h start read", $time, araddr_i);
+`endif
             // latch configuration for read
             addr_r          <= araddr_i;
             opcode_r        <= xip_read_op_i;
@@ -202,6 +205,9 @@ module xip_engine #(
             start_o         <= 1'b1;
             state           <= S_RD_WAIT;
           end else if (awvalid_i && wvalid_i && aw_ready_w && w_ready_w) begin
+`ifdef XIP_DEBUG
+            $display("[XIP] %0t AW/W start write addr=%08h data=%08h", $time, awaddr_i, wdata_i);
+`endif
             // latch configuration for write
             addr_r          <= awaddr_i;
             wdata_r         <= wdata_i;
@@ -228,6 +234,9 @@ module xip_engine #(
 
         S_RD_WAIT: begin
           if (done_i) begin
+`ifdef XIP_DEBUG
+            $display("[XIP] %0t FSM done; popping RX", $time);
+`endif
             state <= S_RD_POP;
           end
         end
@@ -239,6 +248,9 @@ module xip_engine #(
 
         S_RD_RESP: begin
           rdata_o <= fifo_rx_data_i;
+`ifdef XIP_DEBUG
+          if (!rvalid_o) $display("[XIP] %0t RDATA=%08h (valid)", $time, fifo_rx_data_i);
+`endif
           if (rvalid_o && rready_i) begin
             busy_r   <= 1'b0;
             state    <= S_IDLE;
@@ -267,4 +279,3 @@ module xip_engine #(
   end
 
 endmodule
-

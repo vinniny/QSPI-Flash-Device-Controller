@@ -1,5 +1,5 @@
 csr_tb: PASS
-qspi_fsm_tb: TIMEOUT
+qspi_fsm_tb: PASS
 fifo_tx_tb: PASS
 fifo_rx_tb: PASS
 qspi_device_tb: PASS
@@ -8,3 +8,5 @@ dma_engine_tb: PASS
 int_csr_ce_tb: PASS
 int_csr_ce_fsm_tb: PASS
 int_csr_ce_fsm_dma_tb: PASS
+top_tb: TIMEOUT
+top_cmd_tb: FAIL

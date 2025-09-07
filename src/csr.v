@@ -208,9 +208,23 @@ module csr #(
   wire wr_ok = write_phase & valid_addr & ~ro_addr;
 
   // FIFO side effects
-  assign fifo_tx_we_o  = wr_ok & (a==FIFO_TX_ADDR);
+  assign fifo_tx_we_o   = wr_ok & (a==FIFO_TX_ADDR);
   assign fifo_tx_data_o = pwdata;
-  assign fifo_rx_re_o  = read_phase & valid_addr & (a==FIFO_RX_ADDR);
+
+  // Generate a single-cycle pop pulse for FIFO_RX on the first cycle of read_phase.
+  // Hold prdata stable from fifo_rx_data_q while read_phase remains asserted.
+  reg fifo_rx_pop_seen;
+  always @(posedge pclk or negedge presetn) begin
+    if (!presetn) begin
+      fifo_rx_pop_seen <= 1'b0;
+    end else begin
+      if (!(read_phase && valid_addr && (a==FIFO_RX_ADDR)))
+        fifo_rx_pop_seen <= 1'b0;             // disarm when not actively reading FIFO
+      else if (!fifo_rx_pop_seen)
+        fifo_rx_pop_seen <= 1'b1;             // arm after first pop cycle
+    end
+  end
+  assign fifo_rx_re_o = (read_phase && valid_addr && (a==FIFO_RX_ADDR) && !fifo_rx_pop_seen);
 
   // ---------------------------------------------------------
   // Write masks
@@ -251,6 +265,23 @@ module csr #(
   assign cmd_start_o = cmd_trig_q; // one-cycle pulse when CE acks
 
   // ---------------------------------------------------------
+  // FIFO_RX APB read: generate pop and return data with 1-cycle latency
+  // This matches synchronous FIFO behavior where data appears after rd_en.
+  // ---------------------------------------------------------
+  reg [31:0] fifo_rx_data_q;
+  reg        fifo_rx_re_q;
+  always @(posedge pclk or negedge presetn) begin
+    if (!presetn) begin
+      fifo_rx_data_q <= 32'h0;
+      fifo_rx_re_q   <= 1'b0;
+    end else begin
+      fifo_rx_re_q   <= fifo_rx_re_o;           // delay pop by one cycle
+      if (fifo_rx_re_q)
+        fifo_rx_data_q <= fifo_rx_data_i;       // capture popped data
+    end
+  end
+
+  // ---------------------------------------------------------
   // Register writes
   always @(posedge pclk or negedge presetn) begin
     if (!presetn) begin
@@ -259,8 +290,10 @@ module csr #(
       int_stat_reg  <= 32'h0;
       clk_div_reg   <= 32'h0;
       cs_ctrl_reg   <= 32'h0000_0001; // default CS auto=1
-      xip_cfg_reg   <= 32'h0;
-      xip_cmd_reg   <= 32'h0;
+      // Default XIP: 1-1-1 fast read (0x0B), 3-byte addr, 8 dummy cycles
+      // xip_cfg_reg bits: [1:0] addr_bytes, [3:2] data_lanes, [7:4] dummy, [8] cont_read, [9] mode_en
+      xip_cfg_reg   <= 32'h0000_0081; // addr_bytes=01 (3B), data_lanes=00 (1), dummy=8, cont_read=0, mode_en=0
+      xip_cmd_reg   <= 32'h0000_000B; // read opcode=0x0B
       cmd_cfg_reg   <= 32'h0;
       cmd_op_reg    <= 32'h0;
       cmd_addr_reg  <= 32'h0;
@@ -278,8 +311,9 @@ module csr #(
         reg [31:0] next_ctrl;
         next_ctrl = apply_strb(ctrl_reg, pwdata);
         next_ctrl = (next_ctrl & CTRL_WMASK) | (ctrl_reg & ~CTRL_WMASK);
-        // ignore XIP_EN if busy or DMA
-        if (busy_i || next_ctrl[6] || ctrl_reg[6])
+        // Ignore XIP_EN if busy or if DMA_EN is being set in this write.
+        // Allow enabling XIP in the same write that clears DMA_EN.
+        if (busy_i || next_ctrl[6])
           next_ctrl[1] = ctrl_reg[1];
         ctrl_reg <= next_ctrl;
       end
@@ -372,7 +406,7 @@ module csr #(
         DMA_CFG_ADDR   : prdata = dma_cfg_reg;
         DMA_DST_ADDR   : prdata = dma_addr_reg;
         DMA_LEN_ADDR   : prdata = dma_len_reg;
-        FIFO_RX_ADDR   : prdata = fifo_rx_data_i;
+        FIFO_RX_ADDR   : prdata = fifo_rx_data_q;
         FIFO_STAT_ADDR : prdata = {22'd0, rx_full_i, tx_empty_i, rx_level_i, tx_level_i};
         ERR_STAT_ADDR  : prdata = err_stat_reg;
         default        : prdata = 32'h0;
@@ -431,4 +465,3 @@ module csr #(
   assign irq           = |(int_en_reg[4:0] & int_stat_reg[4:0]);
 
 endmodule
-

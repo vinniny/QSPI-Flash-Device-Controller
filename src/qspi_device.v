@@ -37,13 +37,22 @@ always @(negedge qspi_sclk) begin
                 case (data_lanes)
                     2'd0: begin // 1 lane -> IO1
                         io_do[1] <= 1'b1;
+`ifdef DEV_DEBUG
+                        $display("[DEV] %0t drive IO1=1", $time);
+`endif
                     end
                     2'd1: begin // 2 lanes -> IO1, IO0
                         io_do[1] <= 1'b1;
                         io_do[0] <= 1'b1;
+`ifdef DEV_DEBUG
+                        $display("[DEV] %0t drive IO10=11", $time);
+`endif
                     end
                     default: begin // 4 lanes -> IO3..IO0
                         io_do <= 4'b1111;
+`ifdef DEV_DEBUG
+                        $display("[DEV] %0t drive IO3..0=1111", $time);
+`endif
                     end
                 endcase
                 bit_cnt   <= bit_cnt + 1'b1;
@@ -113,6 +122,9 @@ end
     initial begin
         status_reg   = 8'h00;
         id_reg       = 24'hC22017;
+`ifdef DEV_DEBUG
+        $display("[DEV] %0t qspi_device init", $time);
+`endif
     end
 
     // CS# deassert: terminate any in-progress command; keep status persistent
@@ -154,6 +166,9 @@ end
                     // Capture command MSB-first on IO0
                     shift_in <= {shift_in[6:0], io_di[0]};
                     bit_cnt  <= bit_cnt + 1'b1;
+`ifdef DEV_DEBUG
+                    $display("[DEV] %0t CMD bit%0d=%b (io0)", $time, bit_cnt, io_di[0]);
+`endif
                     if (bit_cnt == 6'd7) begin
                         cmd_reg    <= {shift_in[6:0], io_di[0]};
                         bit_cnt    <= 6'd0;
@@ -163,50 +178,80 @@ end
                                 state     <= ST_ID_READ;
                                 shift_out <= id_reg[23:16];
                                 io_oe     <= 4'b0010; // drive IO1
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=9F (RDID)", $time);
+`endif
                             end
                             8'h05: begin
                                 state     <= ST_STATUS;
                                 shift_out <= status_reg;
                                 io_oe     <= 4'b0010; // IO1
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=05 (RDSR)", $time);
+`endif
                             end
                             8'h06: begin
                                 status_reg[1] <= 1'b1; // WEL
                                 state         <= ST_IDLE;
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=06 (WREN)", $time);
+`endif
                             end
                             8'h04: begin
                                 status_reg[1] <= 1'b0;
                                 state         <= ST_IDLE;
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=04 (WRDI)", $time);
+`endif
                             end
                             8'h03: begin
                                 state        <= ST_ADDR;
                                 dummy_cycles <= 5'd0;
                                 data_lanes   <= 2'd0; // 1 lane
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=03 (READ)", $time);
+`endif
                             end
                             8'h0B: begin
                                 state        <= ST_ADDR;
                                 dummy_cycles <= 5'd8;
                                 data_lanes   <= 2'd0; // 1 lane
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=0B (FAST READ)", $time);
+`endif
                             end
                             8'h3B: begin
                                 state        <= ST_ADDR;
                                 dummy_cycles <= 5'd8;
                                 data_lanes   <= 2'd1; // 2 lanes
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=3B (DREAD)", $time);
+`endif
                             end
                             8'h6B: begin
                                 state        <= ST_ADDR;
                                 dummy_cycles <= 5'd8;
                                 data_lanes   <= 2'd2; // 4 lanes
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=6B (QREAD)", $time);
+`endif
                             end
                             8'h02: begin
                                 // Page Program (1-1-1)
                                 // Require WREN previously; data captured after address
                                 state        <= ST_ADDR;
                                 dummy_cycles <= 5'd0;
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=02 (PP)", $time);
+`endif
                             end
                             8'h20: begin
                                 // Sector Erase (4KB); capture address, erase on CS# deassert
                                 state        <= ST_ADDR;
                                 dummy_cycles <= 5'd0;
+`ifdef DEV_DEBUG
+                                $display("[DEV] %0t opcode=20 (SE)", $time);
+`endif
                             end
                             default: state <= ST_IDLE;
                         endcase
@@ -251,6 +296,9 @@ end
                         state     <= ST_DATA_READ;
                         shift_out <= memory[addr_reg];
                         io_oe     <= (data_lanes==2'd0) ? 4'b0010 : (data_lanes==2'd1) ? 4'b0011 : 4'b1111;
+`ifdef DEV_DEBUG
+                        $display("[DEV] %0t enter DATA_READ lanes=%0d addr=%0d", $time, data_lanes, addr_reg);
+`endif
                     end
                 end
 

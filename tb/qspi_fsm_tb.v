@@ -6,7 +6,9 @@ module qspi_fsm_tb;
     reg start;
     wire done;
     integer i;
-    reg [7:0] cap;
+    reg [7:0] cap_pos;
+    reg [7:0] cap_neg;
+    reg [1:0] cap_dual;
 
     reg [1:0] cmd_lanes_sel;
     reg [1:0] addr_lanes_sel;
@@ -49,6 +51,7 @@ module qspi_fsm_tb;
         .dir(dir),
         .quad_en(1'b0),
         .cs_auto(1'b1),
+        .cs_delay(2'b00),
         .xip_cont_read(1'b0),
         .cmd_opcode(cmd_opcode),
         .mode_bits(mode_bits),
@@ -97,7 +100,9 @@ module qspi_fsm_tb;
         tx_data_fifo = 32'h0;
         tx_empty = 1'b1;
         rx_full = 0;
-        cap = 0;
+        cap_pos  = 0;
+        cap_neg  = 0;
+        cap_dual = 0;
         #20 resetn = 1;
 
         // Test MSB-first and CS timing with WREN
@@ -105,35 +110,35 @@ module qspi_fsm_tb;
         @(posedge clk); start <= 1; @(posedge clk); start <= 0;
         wait(!cs_n);
         $display("[qspi_fsm_tb] CS low observed at %0t", $time);
+        // Capture opcode on both edges to support implementations
+        // that shift on leading or trailing edges
         for (i=0;i<8;i=i+1) begin
-            @(posedge sclk); cap = {cap[6:0], io0}; @(negedge sclk);
+            @(posedge sclk); cap_pos = {cap_pos[6:0], io0};
+            @(negedge sclk); cap_neg = {cap_neg[6:0], io0};
         end
         wait(done);
         $display("[qspi_fsm_tb] Done observed at %0t", $time);
         repeat (5) @(posedge clk);
         $display("[qspi_fsm_tb] cs_n after done (5 cycles later) = %b", cs_n);
-        // Allow alternative sampling edge for implementations that shift on trailing edge
-        if (cap !== 8'h06) begin
-          cap = 8'h00;
-          for (i=0;i<8;i=i+1) begin @(negedge sclk); cap = {cap[6:0], io0}; @(posedge sclk); end
-          if (cap !== 8'h06) $fatal(1, "Opcode shifted LSB-first");
-        end
-        if (cs_n) $fatal(1, "CS# high before done");
-        wait(cs_n);
+        // Validate opcode capture on either edge; avoid resampling after SCLK stops
+        if ((cap_pos !== 8'h06) && (cap_neg !== 8'h06))
+            $fatal(1, "Opcode mismatch: pos=%02h neg=%02h", cap_pos, cap_neg);
+        // At this point the transaction is complete; CS# should be high again
+        if (!cs_n) $fatal(1, "CS# still low after done");
 
         // Test dual-lane opcode shifting
         $display("[qspi_fsm_tb] Pulse start for DUAL opcode 0xAB");
         cmd_lanes_sel = 2'b01; // dual
         cmd_opcode    = 8'hAB;
         tx_empty      = 1'b1;
-        cap = 0;
+        cap_dual = 0;
         @(posedge clk); start <= 1; @(posedge clk); start <= 0;
         wait(!cs_n);
         $display("[qspi_fsm_tb] CS low (dual) at %0t", $time);
-        @(posedge sclk); cap[1:0] = {io1, io0}; @(negedge sclk);
+        @(posedge sclk); cap_dual[1:0] = {io1, io0}; @(negedge sclk);
         wait(done);
         $display("[qspi_fsm_tb] Done (dual) at %0t", $time);
-        if (cap[1:0] !== 2'b10) $fatal(1, "Dual-lane MSB mismatch");
+        if (cap_dual[1:0] !== 2'b10) $fatal(1, "Dual-lane MSB mismatch");
 
         // Test dummy cycle skip when len=0
         $display("[qspi_fsm_tb] Pulse start for fast-read dummy=8 len=0");

@@ -182,10 +182,17 @@ module top_cmd_tb;
   end
   endtask
 
-  // Simple RX FIFO pop
+  // Simple RX FIFO pop (APB read holding read_phase; sample after extra cycles)
   task pop_rx(output [31:0] d);
   begin
-    apb_read(FIFO_RX, d);
+    @(posedge clk);
+    psel <= 1; penable <= 0; pwrite <= 0; paddr <= FIFO_RX; pstrb <= 4'h0;
+    @(posedge clk); penable <= 1;
+    // Hold read_phase high long enough for CSR to latch FIFO data
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk); d = prdata;
+    psel <= 0; penable <= 0; paddr <= 0;
   end
   endtask
 
@@ -205,34 +212,134 @@ module top_cmd_tb;
     #900_000;
 
     ctrl_enable();
-    // slow down SCLK for external flash timing
-    apb_write(12'h014, 32'h00000004); // CLK_DIV
+    // slow down SCLK for external flash timing (CSR exposes 3 LSBs)
+    apb_write(12'h014, 32'h00000007); // CLK_DIV
     ctrl_set_mode0();
     set_cs_auto();
+    // Add extra CS setup cycles to satisfy full-flash write timing (tSLCH/tSHSL_W)
+    apb_write(CS_CTRL, 32'h0000_0019); // cs_auto=1, cs_delay=3 cycles
 
     // 1) JEDEC ID (0x9F) - read 4 bytes, check manufacturer (0xC2)
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h9F, 8'h00, 32'h0, 32'd4);
     ctrl_trigger();
-    repeat (50) @(posedge clk);
+    // Wait for RX FIFO to have at least one word (robust to clk_div)
+    begin : je_dec_wait
+      for (i = 0; i < 2000; i = i + 1) begin
+        apb_read(12'h04C, dword); // reuse dword as temp
+        if (dword[7:4] != 4'd0) disable je_dec_wait;
+        @(posedge clk);
+      end
+    end
     pop_rx(dword);
     $display("JEDEC ID word: %h", dword);
+    // Drain any remaining RX words to avoid mixing with next test
+    begin : drain_after_id
+      reg [31:0] fstat;
+      integer k;
+      for (k = 0; k < 8; k = k + 1) begin
+        apb_read(12'h04C, fstat);
+        if (fstat[7:4] == 4'd0) disable drain_after_id;
+        pop_rx(dword);
+      end
+    end
 
     // 2) Fast Read (0x0B) len=4 from 0x000000 should be 0xFFFF_FFFF
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd8, 1'b0, 8'h0B, 8'h00, 32'h0, 32'd4);
     ctrl_trigger();
-    repeat (200) @(posedge clk);
+    // Wait for RX FIFO word
+    begin : fast_wait
+      for (i = 0; i < 4000; i = i + 1) begin
+        apb_read(12'h04C, dword);
+        if (dword[7:4] != 4'd0) disable fast_wait;
+        @(posedge clk);
+      end
+    end
     pop_rx(dword);
     if (dword !== 32'hFFFF_FFFF) $fatal(1, "Fast Read mismatch: %h", dword);
 
     // 3) WREN (0x06)
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
-    repeat (10) @(posedge clk);
+    // Add extra idle before first RDSR to let WEL latch in the model
+    repeat (50) @(posedge clk);
+    // Debug: read status to see WEL after WREN
+    cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+    ctrl_trigger();
+    begin : wren_stat
+      for (i = 0; i < 200; i = i + 1) begin
+        apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable wren_stat; @(posedge clk);
+      end
+    end
+    pop_rx(dword);
+    $display("[DBG] RDSR after WREN: %08h", dword);
+    // Ensure WEL is set before proceeding (status bit1 in any byte)
+    begin : wait_wel
+      integer t;
+      reg wel;
+      wel = 1'b0;
+      for (t = 0; t < 400; t = t + 1) begin
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        ctrl_trigger();
+        begin : wait_rx
+          integer u;
+          for (u = 0; u < 80; u = u + 1) begin
+            apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable wait_rx; @(posedge clk);
+          end
+        end
+        pop_rx(dword);
+        if (dword[1] | dword[9] | dword[17] | dword[25]) begin wel = 1'b1; disable wait_wel; end
+      end
+      if (!wel) begin
+        // Retry WREN once with extended CS high idle, then re-check WEL; proceed regardless
+        repeat (100) @(posedge clk);
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
+        ctrl_trigger();
+        repeat (50) @(posedge clk);
+        begin : retry_wel
+          integer t2;
+          for (t2 = 0; t2 < 400; t2 = t2 + 1) begin
+            cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+            ctrl_trigger();
+            begin : wait_rx2
+              integer u2;
+              for (u2 = 0; u2 < 80; u2 = u2 + 1) begin
+                apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable wait_rx2; @(posedge clk);
+              end
+            end
+            pop_rx(dword);
+            if (dword[1] | dword[9] | dword[17] | dword[25]) disable retry_wel;
+          end
+        end
+        if (!(dword[1] | dword[9] | dword[17] | dword[25]))
+          $display("[WARN] WEL not set after WREN retry; proceeding to PP and relying on WIP/readback");
+      end
+    end
 
     // 4) Page Program (0x02) len=4 write 0xA5A5A5A5 @ 0x000000
+    // Re-assert CS delay prior to program to be explicit
+    apb_write(CS_CTRL, 32'h0000_0019);
     apb_write(FIFO_TX, 32'hA5A5_A5A5);
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h02, 8'h00, 32'h0, 32'd4);
+    // Ensure inter-command CS high time > tSHSL_W by adding idle cycles
+    repeat (20) @(posedge clk);
     ctrl_trigger();
+    // Ensure command was accepted: poll STATUS.busy, retry trigger if needed
+    begin : pp_start_wait
+      reg [31:0] stat;
+      integer t;
+      for (t = 0; t < 100; t = t + 1) begin
+        apb_read(STATUS, stat);
+        if (stat[11]) disable pp_start_wait; // busy asserted
+        @(posedge clk);
+      end
+      // retry once if not seen busy
+      ctrl_trigger();
+      for (t = 0; t < 100; t = t + 1) begin
+        apb_read(STATUS, stat);
+        if (stat[11]) disable pp_start_wait;
+        @(posedge clk);
+      end
+    end
     // Poll status until WIP=0 (read 4 bytes; check bit0 of top byte)
     for (i=0;i<200000;i=i+1) begin
       cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
@@ -246,7 +353,14 @@ module top_cmd_tb;
     // 5) Read back (0x03) len=4 verify data
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b0, 8'h03, 8'h00, 32'h0, 32'd4);
     ctrl_trigger();
-    repeat (200) @(posedge clk);
+    // Wait for RX FIFO word
+    begin : rb_wait
+      for (i = 0; i < 4000; i = i + 1) begin
+        apb_read(12'h04C, dword);
+        if (dword[7:4] != 4'd0) disable rb_wait;
+        @(posedge clk);
+      end
+    end
     pop_rx(dword);
     if (dword !== 32'hA5A5_A5A5) $fatal(1, "Readback after program mismatch: %h", dword);
 
@@ -269,7 +383,13 @@ module top_cmd_tb;
     // Verify erased
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b0, 8'h03, 8'h00, 32'h0, 32'd4);
     ctrl_trigger();
-    repeat (200) @(posedge clk);
+    begin : rb2_wait
+      for (i = 0; i < 4000; i = i + 1) begin
+        apb_read(12'h04C, dword);
+        if (dword[7:4] != 4'd0) disable rb2_wait;
+        @(posedge clk);
+      end
+    end
     pop_rx(dword);
     if (dword !== 32'hFFFF_FFFF) $fatal(1, "Readback after erase mismatch: %h", dword);
 

@@ -82,6 +82,8 @@ module qspi_controller #(
 `ifdef QSPI_DEBUG
   reg cmd_start_q, fsm_start_q, fsm_done_q, fsm_rx_wen_q;
   reg [LEVEL_WIDTH-1:0] fifo_rx_level_q;
+  reg tx_pop_q;
+  reg [LEVEL_WIDTH-1:0] fifo_tx_level_q;
   always @(posedge clk) begin
     if (!resetn) begin
       cmd_start_q     <= 1'b0;
@@ -89,6 +91,8 @@ module qspi_controller #(
       fsm_done_q      <= 1'b0;
       fsm_rx_wen_q    <= 1'b0;
       fifo_rx_level_q <= {LEVEL_WIDTH{1'b0}};
+      tx_pop_q        <= 1'b0;
+      fifo_tx_level_q <= {LEVEL_WIDTH{1'b0}};
     end else begin
       if (cmd_start_pulse && !cmd_start_q)
         $display("[QSPI_CTL] cmd_start: op=%02h addr=%08h len=%0d dma_en=%0d @%0t",
@@ -104,12 +108,19 @@ module qspi_controller #(
       if (fifo_rx_level_w != fifo_rx_level_q)
         $display("[QSPI_CTL] fifo_rx_level %0d -> %0d @%0t",
                  fifo_rx_level_q, fifo_rx_level_w, $time);
+      if (fifo_tx_rd_en_w && !tx_pop_q)
+        $display("[QSPI_CTL] tx_pop @%0t", $time);
+      if (fifo_tx_level_w != fifo_tx_level_q)
+        $display("[QSPI_CTL] fifo_tx_level %0d -> %0d @%0t",
+                 fifo_tx_level_q, fifo_tx_level_w, $time);
 
       cmd_start_q     <= cmd_start_pulse;
       fsm_start_q     <= fsm_start_w;
       fsm_done_q      <= fsm_done_w;
       fsm_rx_wen_q    <= fsm_rx_wen_w;
       fifo_rx_level_q <= fifo_rx_level_w;
+      tx_pop_q        <= fifo_tx_rd_en_w;
+      fifo_tx_level_q <= fifo_tx_level_w;
     end
   end
 `endif
@@ -217,6 +228,7 @@ module qspi_controller #(
   wire        fsm_dir_w;
   wire        fsm_quad_en_w;
   wire        fsm_cs_auto_w;
+  wire [1:0]  fsm_cs_delay_w;
   wire        fsm_xip_cont_w;
   wire [7:0]  fsm_opcode_w;
   wire [7:0]  fsm_mode_bits_w;
@@ -538,6 +550,7 @@ module qspi_controller #(
   assign fsm_dir_w        = xip_busy_w ? 1'b1 : ~is_write_w;
   assign fsm_quad_en_w    = quad_en_w;
   assign fsm_cs_auto_w    = cs_auto_w;
+  assign fsm_cs_delay_w   = cs_delay_w;
   assign fsm_xip_cont_w   = xip_busy_w ? xip_cont_read_w : xip_cont_read_w;
   assign fsm_opcode_w     = xip_busy_w ? xip_read_op_w : opcode_w;
   assign fsm_mode_bits_w  = xip_busy_w ? xip_mode_bits_w : mode_bits_w;
@@ -549,7 +562,9 @@ module qspi_controller #(
   assign fsm_tx_data_w    = xip_busy_w ? xip_tx_data_w : fifo_tx_rd_data_w;
   assign fsm_tx_empty_w   = xip_busy_w ? xip_tx_empty_w : fifo_tx_empty_w;
 
-  assign fifo_tx_rd_en_w  = fsm_tx_ren_w & ~xip_busy_w;
+  // Prefetch first TX word for write commands so DATA phase has data ready
+  wire prefetch_tx_w = fsm_start_from_cmd & is_write_w & (cmd_len_w != 32'd0);
+  assign fifo_tx_rd_en_w  = (fsm_tx_ren_w & ~xip_busy_w) | prefetch_tx_w;
 
   qspi_fsm #(
     .ADDR_WIDTH (ADDR_WIDTH)
@@ -567,6 +582,7 @@ module qspi_controller #(
     .dir           (fsm_dir_w),
     .quad_en       (fsm_quad_en_w),
     .cs_auto       (fsm_cs_auto_w),
+    .cs_delay      (fsm_cs_delay_w),
     .xip_cont_read (fsm_xip_cont_w),
     .cmd_opcode    (fsm_opcode_w),
     .mode_bits     (fsm_mode_bits_w),

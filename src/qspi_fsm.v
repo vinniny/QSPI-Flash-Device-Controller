@@ -24,6 +24,7 @@ module qspi_fsm #(
     input  wire        dir,              // 0:write 1:read
     input  wire        quad_en,
     input  wire        cs_auto,
+    input  wire [1:0]  cs_delay,        // extra setup/hold cycles (from CSR)
     input  wire        xip_cont_read,
 
     // opcode/mode/address
@@ -125,6 +126,7 @@ reg [31:0] sclk_cnt;
 reg        sclk_q;
 reg        sclk_edge;
 reg        sclk_q_prev;
+reg        sclk_armed;   // ensure first toggle occurs one cycle after enable
 
 assign sclk = sclk_en ? sclk_q : cpol;
 
@@ -134,14 +136,20 @@ always @(posedge clk or negedge resetn) begin
         sclk_q     <= 1'b0;
         sclk_q_prev<= 1'b0;
         sclk_edge  <= 1'b0;
+        sclk_armed <= 1'b0;
     end else begin
         sclk_edge <= 1'b0;
         if (!sclk_en) begin
             sclk_cnt    <= 32'd0;
             sclk_q      <= cpol;
             sclk_q_prev <= cpol;
+            sclk_armed  <= 1'b0;
         end else begin
-            if (sclk_cnt >= clk_div) begin
+            // arm on first cycle after enable to provide data setup time
+            if (!sclk_armed) begin
+                sclk_armed <= 1'b1;
+                sclk_cnt   <= 32'd0;
+            end else if (sclk_cnt >= clk_div) begin
                 sclk_cnt    <= 32'd0;
                 sclk_q_prev <= sclk_q;
                 sclk_q      <= ~sclk_q;
@@ -216,10 +224,12 @@ localparam [3:0]
     DATA_BIT  = 4'd6,
     CS_HOLD   = 4'd7,
     CS_DONE   = 4'd8,
-    ERASE     = 4'd9;  // explicit state for erase-type ops (e.g., 0x20 sector erase)
+    ERASE     = 4'd9,  // explicit state for erase-type ops (e.g., 0x20 sector erase)
+    WR_SETUP  = 4'd10; // one-cycle setup before write DATA to allow TX prefetch
 
 reg [3:0] state, state_n;
 reg       cs_n_n;
+reg [1:0] cs_cnt, cs_cnt_n;
 
 assign done = (state == CS_DONE) || (state == CS_HOLD);
 
@@ -234,6 +244,7 @@ always @(posedge clk or negedge resetn) begin
         dummy_cnt <= 4'd0;
         io_oe     <= 4'b0;
         sclk_en   <= 1'b0;
+        cs_cnt    <= 2'd0;
     end else begin
         state     <= state_n;
         cs_n      <= cs_n_n;
@@ -244,6 +255,7 @@ always @(posedge clk or negedge resetn) begin
         dummy_cnt <= dummy_cnt_n;
         io_oe     <= io_oe_n;
         sclk_en   <= sclk_en_n;
+        cs_cnt    <= cs_cnt_n;
     end
 end
 
@@ -260,6 +272,7 @@ always @* begin
     rx_wen       = 1'b0;
     rx_data_fifo = 32'b0;
     cs_n_n       = cs_n;
+    cs_cnt_n     = cs_cnt;
 
     // Identify erase-type commands (sector/block/chip)
     // Used to optionally enter ERASE state after address phase
@@ -276,22 +289,31 @@ always @* begin
                 lanes_n   = cmd_lanes_eff;
                 shreg_n   = {cmd_opcode, 24'b0};
                 bit_cnt_n = 6'd0;
+                cs_cnt_n  = cs_delay;  // load CS setup counter
             end
         end
 
         CS_SETUP: begin
             io_oe_n = 4'b0000;
             cs_n_n  = 1'b0;
-            state_n = CMD_BIT;
+            // hold CS low for programmable setup cycles before SCLK starts
+            if (cs_cnt != 0)
+                cs_cnt_n = cs_cnt - 1'b1;
+            else
+                state_n = CMD_BIT;
         end
 
         CMD_BIT: begin
             sclk_en_n = 1'b1;
             io_oe_n   = lane_mask(lanes);
             // Shift on the shifting edge so that outputs settle half-cycle earlier
-            if (shift_pulse)
+            // For command phase, shift one edge earlier to ensure MSB alignment
+            if (sample_pulse)
                 shreg_n = shreg << lanes;
             if (bit_tick) begin
+`ifdef FSM_DEBUG
+                $display("[FSM] %0t CMD bit=%0d out=%b", $time, bit_cnt, out_bits[0]);
+`endif
                 bit_cnt_n = bit_cnt + {3'b000, lanes};
                 if (bit_cnt_n >= 6'd8) begin
                     bit_cnt_n = 6'd0;
@@ -309,16 +331,19 @@ always @* begin
                         lanes_n   = data_lanes_eff;
                         dummy_cnt_n = dummy_cycles;
                     end else if (len_bytes != 0) begin
-                        state_n   = DATA_BIT;
-                        lanes_n   = data_lanes_eff;
-                        shreg_n   = dir ? 32'b0 : tx_data_fifo;
-                        io_oe_n   = dir ? 4'b0000 : lane_mask(data_lanes_eff);
-                        byte_cnt_n = 32'd0;
+                        lanes_n     = data_lanes_eff;
+                        io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
+                        byte_cnt_n  = 32'd0;
+                        if (dir)
+                            state_n = DATA_BIT;
+                        else
+                            state_n = WR_SETUP; // allow TX data to be prefetched and latched
                     end else if ((cmd_opcode==8'h20) || (cmd_opcode==8'hD8) || (cmd_opcode==8'hC7) || (cmd_opcode==8'h60)) begin
                         // Chip/block erase opcodes without address phase
                         state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
+                        cs_cnt_n = cs_delay;
                     end
                 end
             end
@@ -342,16 +367,19 @@ always @* begin
                         lanes_n     = data_lanes_eff;
                         dummy_cnt_n = dummy_cycles;
                     end else if (len_bytes != 0) begin
-                        state_n     = DATA_BIT;
                         lanes_n     = data_lanes_eff;
-                        shreg_n     = dir ? 32'b0 : tx_data_fifo;
                         io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
                         byte_cnt_n  = 32'd0;
+                        if (dir)
+                            state_n = DATA_BIT;
+                        else
+                            state_n = WR_SETUP;
                     end else if ((cmd_opcode==8'h20) || (cmd_opcode==8'hD8)) begin
                         // Addressed erase commands (sector/block)
                         state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
+                        cs_cnt_n = cs_delay;
                     end
                 end
             end
@@ -371,13 +399,16 @@ always @* begin
                         lanes_n   = data_lanes_eff;
                         dummy_cnt_n = dummy_cycles;
                     end else if (len_bytes != 0) begin
-                        state_n   = DATA_BIT;
-                        lanes_n   = data_lanes_eff;
-                        shreg_n   = dir ? 32'b0 : tx_data_fifo;
-                        io_oe_n   = dir ? 4'b0000 : lane_mask(data_lanes_eff);
-                        byte_cnt_n = 32'd0;
+                        lanes_n     = data_lanes_eff;
+                        io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
+                        byte_cnt_n  = 32'd0;
+                        if (dir)
+                            state_n = DATA_BIT;
+                        else
+                            state_n = WR_SETUP;
                     end else begin
                         state_n = CS_DONE;
+                        cs_cnt_n = cs_delay;
                     end
                 end
             end
@@ -398,6 +429,7 @@ always @* begin
                         byte_cnt_n = 32'd0;
                     end else begin
                         state_n = CS_DONE;
+                        cs_cnt_n = cs_delay;
                     end
                 end
             end
@@ -429,8 +461,17 @@ always @* begin
                     end
                 end
             end else begin
-                if (shift_pulse)
+`ifdef FSM_DEBUG
+                if (bit_cnt==6'd0 && byte_cnt==32'd0) begin
+                    $display("[FSM] %0t WRITE start shreg=%08h lanes=%0d", $time, shreg, lanes);
+                end
+`endif
+                if (shift_pulse) begin
+`ifdef FSM_DEBUG
+                    $display("[FSM] %0t WRITE shift out=%b shreg=%08h", $time, out_bits[0], shreg);
+`endif
                     shreg_n = shreg << lanes;
+                end
                 if (bit_tick) begin
                     bit_cnt_n = bit_cnt + {3'b000, lanes};
                     if (bit_cnt_n >= 6'd32) begin
@@ -447,15 +488,29 @@ always @* begin
             end
         end
 
+        // One-cycle write setup to latch first TX word before data shifting begins
+        WR_SETUP: begin
+            sclk_en_n = 1'b0;                     // hold SCLK idle
+            io_oe_n   = lane_mask(lanes);         // drive IO for write
+            shreg_n   = tx_data_fifo;             // latch first word from FIFO
+            state_n   = DATA_BIT;                 // proceed next cycle
+        end
+
         CS_HOLD: begin
             cs_n_n = 1'b0;
-            if (cs_auto)
+            if (cs_auto) begin
                 state_n = CS_DONE;
+                cs_cnt_n = cs_delay;
+            end
         end
 
         CS_DONE: begin
             cs_n_n  = 1'b1;
-            state_n = IDLE;
+            // enforce a minimum CS# high time using cs_delay
+            if (cs_cnt != 0)
+                cs_cnt_n = cs_cnt - 1'b1;
+            else
+                state_n = IDLE;
         end
 
         // Erase state: no data transfer; maintain CS low for one cycle
@@ -465,6 +520,7 @@ always @* begin
             cs_n_n    = 1'b0;
             sclk_en_n = 1'b0;
             state_n   = CS_DONE;
+            cs_cnt_n  = cs_delay;
         end
 
         default: state_n = IDLE;
@@ -474,8 +530,40 @@ end
 // ------------------------------------------------------------
 // TX FIFO read enable
 // ------------------------------------------------------------
-assign tx_ren = (state==DATA_BIT) && !dir &&
-                (bit_cnt + {3'b000, lanes} >= 6'd32) &&
-                ((byte_cnt + 4) < len_bytes) && !tx_empty;
+assign tx_ren = !dir && (
+                // Prefetch first TX word just before entering DATA_BIT
+                ((state==CMD_BIT)  && (addr_bits==6'd0) && !mode_en && (dummy_cycles==4'd0) && (len_bytes!=32'd0) && bit_tick &&
+                   (bit_cnt + {3'b000, lanes} >= 6'd8) && !tx_empty) ||
+                ((state==ADDR_BIT) && bit_tick && (bit_cnt + {3'b000, lanes} >= addr_bits) && !mode_en && (dummy_cycles==4'd0) && (len_bytes!=32'd0) && !tx_empty) ||
+                ((state==MODE_BIT) && bit_tick && (bit_cnt + {3'b000, lanes} >= 6'd8) && (dummy_cycles==4'd0) && (len_bytes!=32'd0) && !tx_empty) ||
+                ((state==DUMMY_BIT) && bit_tick && (dummy_cnt==4'd1) && (len_bytes!=32'd0) && !tx_empty) ||
+                // Subsequent words during DATA phase
+                ((state==DATA_BIT) && (bit_cnt + {3'b000, lanes} >= 6'd32) && ((byte_cnt + 4) < len_bytes) && !tx_empty)
+               );
+
+// ------------------------------------------------------------
+// Optional debug: print state transitions and first RX word
+// Enable by compiling with -D FSM_DEBUG
+// ------------------------------------------------------------
+`ifdef FSM_DEBUG
+reg [3:0] state_q;
+reg       rx_wen_q;
+always @(posedge clk or negedge resetn) begin
+    if (!resetn) begin
+        state_q  <= IDLE;
+        rx_wen_q <= 1'b0;
+    end else begin
+        if (state != state_q) begin
+            $display("[FSM] %0t state %0d -> %0d (op=%02h len=%0d lanes_cmd=%0d/addr=%0d/data=%0d dir=%0d)",
+                     $time, state_q, state, cmd_opcode, len_bytes, cmd_lanes_eff, addr_lanes_eff, data_lanes_eff, dir);
+        end
+        if (rx_wen && !rx_wen_q) begin
+            $display("[FSM] %0t RX_WEN data=%08h io1=%b lanes=%0d", $time, rx_data_fifo, io1, lanes);
+        end
+        state_q  <= state;
+        rx_wen_q <= rx_wen;
+    end
+end
+`endif
 
 endmodule

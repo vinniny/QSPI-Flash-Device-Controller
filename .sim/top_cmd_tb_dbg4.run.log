@@ -1,0 +1,142 @@
+VCD info: dumpfile top_cmd_tb.vcd opened for output.
+VCD warning: tb/top_cmd_tb.v:204: $dumpfile called after $dumpvars started,
+                                  using existing file (top_cmd_tb.vcd).
+VCD warning: ignoring signals in previously scanned scope top_cmd_tb.
+[QSPI_CTL] cmd_start: op=9f addr=00000000 len=4 dma_en=0 @0
+[QSPI_CTL] fsm_start: op=9f addr=00000000 len=4 clk_div=4 @0
+[FSM] 0 state 0 -> 1 (op=9f len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=9f len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=1
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=1
+[FSM] 0 CMD bit=3 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=5 out=1
+[FSM] 0 CMD bit=5 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 6 (op=9f len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] first RX: data=c22017c2 level=0 io1=0 @0
+[FSM] 0 RX_WEN data=c22017c2 io1=0 lanes=1
+[QSPI_CTL] fsm_done @0
+[FSM] 0 state 6 -> 8 (op=9f len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 0 -> 1 @0
+[FSM] 0 state 8 -> 0 (op=9f len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 1 -> 0 @0
+JEDEC ID word: c22017c2
+[QSPI_CTL] cmd_start: op=0b addr=00000000 len=4 dma_en=0 @0
+[QSPI_CTL] fsm_start: op=0b addr=00000000 len=4 clk_div=4 @0
+[FSM] 0 state 0 -> 1 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 3 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 3 -> 5 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 5 -> 6 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] first RX: data=ffffffff level=0 io1=1 @0
+[FSM] 0 RX_WEN data=ffffffff io1=1 lanes=1
+[QSPI_CTL] fsm_done @0
+[FSM] 0 state 6 -> 8 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 0 -> 1 @0
+[FSM] 0 state 8 -> 0 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 1 -> 0 @0
+[QSPI_CTL] cmd_start: op=06 addr=00000000 len=0 dma_en=0 @0
+[QSPI_CTL] fsm_start: op=06 addr=00000000 len=0 clk_div=4 @0
+[FSM] 0 state 0 -> 1 (op=06 len=0 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=06 len=0 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=0
+[FSM] 0 CMD bit=4 out=0
+[FSM] 0 CMD bit=5 out=1
+[FSM] 0 CMD bit=5 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=0
+[FSM] 0 CMD bit=7 out=0
+[FSM] 0 state 2 -> 3 (op=02 len=4 lanes_cmd=1/addr=1/data=1 dir=0)
+[FSM] 0 state 3 -> 6 (op=02 len=4 lanes_cmd=1/addr=1/data=1 dir=0)
+[QSPI_CTL] fsm_done @0
+[FSM] 0 state 6 -> 8 (op=02 len=4 lanes_cmd=1/addr=1/data=1 dir=0)
+[FSM] 0 state 8 -> 0 (op=02 len=4 lanes_cmd=1/addr=1/data=1 dir=0)
+[QSPI_CTL] cmd_start: op=05 addr=00000000 len=4 dma_en=0 @0
+[QSPI_CTL] fsm_start: op=05 addr=00000000 len=4 clk_div=4 @0
+[FSM] 0 state 0 -> 1 (op=05 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=05 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=0
+[FSM] 0 CMD bit=4 out=0
+[FSM] 0 CMD bit=5 out=1
+[FSM] 0 CMD bit=5 out=1
+[FSM] 0 CMD bit=6 out=0
+[FSM] 0 CMD bit=6 out=0
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 6 (op=05 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] first RX: data=00000000 level=0 io1=0 @0
+[FSM] 0 RX_WEN data=00000000 io1=0 lanes=1
+[QSPI_CTL] fsm_done @0
+[FSM] 0 state 6 -> 8 (op=05 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 0 -> 1 @0
+[FSM] 0 state 8 -> 0 (op=05 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 1 -> 0 @0
+[QSPI_CTL] cmd_start: op=03 addr=00000000 len=4 dma_en=0 @0
+[QSPI_CTL] fsm_start: op=03 addr=00000000 len=4 clk_div=4 @0
+[FSM] 0 state 0 -> 1 (op=03 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=03 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=0
+[FSM] 0 CMD bit=4 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 3 (op=03 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 3 -> 6 (op=03 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] first RX: data=ffffffff level=0 io1=1 @0
+[FSM] 0 RX_WEN data=ffffffff io1=1 lanes=1
+[QSPI_CTL] fsm_done @0
+[FSM] 0 state 6 -> 8 (op=03 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 0 -> 1 @0
+[FSM] 0 state 8 -> 0 (op=03 len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_CTL] fifo_rx_level 1 -> 0 @0
+FATAL: tb/top_cmd_tb.v:306: Readback after program mismatch: ffffffff
+       Time: 3931180000 Scope: top_cmd_tb
