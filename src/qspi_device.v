@@ -3,8 +3,8 @@
 // - 0x9F: Read JEDEC ID (returns 0xC2 on IO1)
 // - 0x05: Read Status (bit0=WIP, bit1=WEL)
 // - 0x06/0x04: WREN/WRDI (set/clear WEL in status[1])
-// - 0x03/0x0B: Read (1-1-1) and Fast Read with 8 dummy cycles
-// - 0x02: Page Program (1-1-1) — captures input bytes to memory
+// - 0x03/0x0B/0x3B: Read (1-1-1 / 1-1-2) and Fast Read with dummy cycles
+// - 0x02/0x32/0x38: Page Program (1-1-1 / 1-1-4 / 4-4-4) — captures input bytes
 // - 0x20: Sector Erase (4KB) — sets sector bytes to 0xFF
 
 module qspi_device (
@@ -100,10 +100,11 @@ module qspi_device (
         end else begin
             case (state)
                 ST_IDLE: begin
-                   state <= ST_CMD;
-                   bit_cnt <= 6'd0;
-                   lanes <= 4'd1; // default to 1-1-1
-                   shift_in <= 8'd0;
+                   // Capture first command bit immediately after CS# goes low
+                   state    <= ST_CMD;
+                   bit_cnt  <= 6'd1;
+                   lanes    <= 4'd1; // default to 1-1-1
+                   shift_in <= {shift_in[6:0], io_di[0]};
                 end
                 ST_CMD: begin
                     shift_in <= {shift_in[6:0], io_di[0]};
@@ -134,18 +135,21 @@ module qspi_device (
                                 status_reg[1] <= 1'b0; // clear WEL
                                 state <= ST_IDLE;
                             end
-                            8'h03, 8'h0B, 8'hBB, 8'h6B, 8'hEB: begin // 3B -> BB
+                            8'h03, 8'h0B, 8'h3B, 8'hBB, 8'h6B, 8'hEB: begin
                                 state <= ST_ADDR;
                                 addr_reg <= {ADDR_BITS{1'b0}};
                                 shift_in <= 8'd0;
-                                lanes <= (nxt_cmd_reg == 8'h03 || nxt_cmd_reg == 8'h0B || nxt_cmd_reg == 8'h6B) ? 4'd1 : (nxt_cmd_reg == 8'hBB) ? 4'd2 : 4'd4; 
-                                dummy_cycles <= (nxt_cmd_reg == 8'h03) ? 5'd0 : (nxt_cmd_reg == 8'hEB) ? 5'd4 : (nxt_cmd_reg == 8'hBB) ? 5'd4 : 5'd8;
+                                lanes <= (nxt_cmd_reg == 8'h03 || nxt_cmd_reg == 8'h0B || nxt_cmd_reg == 8'h6B || nxt_cmd_reg == 8'h3B) ? 4'd1 :
+                                         (nxt_cmd_reg == 8'hBB) ? 4'd2 : 4'd4;
+                                dummy_cycles <= (nxt_cmd_reg == 8'h03) ? 5'd0 :
+                                                 (nxt_cmd_reg == 8'hEB) ? 5'd4 :
+                                                 (nxt_cmd_reg == 8'hBB || nxt_cmd_reg == 8'h3B) ? 5'd4 : 5'd8;
                             end
-                            8'h02, 8'h38: begin // 32 => 38
+                            8'h02, 8'h32, 8'h38: begin
                                 dummy_cycles <= 5'd0;
                                 if (status_reg[1]) begin
                                     state <= ST_ADDR;
-                                    lanes <= (nxt_cmd_reg == 8'h02) ? 4'd1 : 4'd4; // 1-1-1 or 4-4-4
+                                    lanes <= (nxt_cmd_reg == 8'h02 || nxt_cmd_reg == 8'h32) ? 4'd1 : 4'd4; // 1-1-1 or 1-1-4/4-4-4
                                 end else begin
                                     state <= ST_IDLE; // ignore if WEL not set
                                 end
@@ -208,14 +212,15 @@ module qspi_device (
                             end
                             else if (dummy_cycles > 0) state <= ST_DUMMY;
                             else begin
-                                state <= (cmd_reg == 8'h02 || cmd_reg == 8'h38) ? ST_DATA_WRITE : ST_DATA_READ;
+                                state <= (cmd_reg == 8'h02 || cmd_reg == 8'h32 || cmd_reg == 8'h38) ? ST_DATA_WRITE : ST_DATA_READ;
                                 bit_cnt <= 6'd0;
                                 byte_cnt <= 6'd0;
-                                if (cmd_reg == 8'h02 || cmd_reg == 8'h38) io_oe <= 4'b0000;
+                                if (cmd_reg == 8'h02 || cmd_reg == 8'h32 || cmd_reg == 8'h38) io_oe <= 4'b0000;
                                 else if (cmd_reg == 8'h6B) io_oe <= 4'b1111;
                                 else if (lanes == 4'd1) io_oe <= 4'b0010;
                                 else if (lanes == 4'd2) io_oe <= 4'b0011;
                                 else io_oe <= 4'b1111;
+                                if (cmd_reg == 8'h32) lanes <= 4'd4; // switch to quad input for data phase
                                 shift_out <= memory[addr_reg];
                             end
                         end
@@ -240,10 +245,11 @@ module qspi_device (
                 ST_DUMMY: begin
                     bit_cnt <= bit_cnt + 1;
                     if (bit_cnt == dummy_cycles - 1) begin
-                        state <= (cmd_reg == 8'h02 || cmd_reg == 8'h38) ? ST_DATA_WRITE : ST_DATA_READ;
+                        state <= (cmd_reg == 8'h02 || cmd_reg == 8'h32 || cmd_reg == 8'h38) ? ST_DATA_WRITE : ST_DATA_READ;
                         if (cmd_reg == 8'h6B) lanes <= 4;
+                        else if (cmd_reg == 8'h3B) lanes <= 2;
                         bit_cnt <= 0;
-                        if (cmd_reg == 8'h02 || cmd_reg == 8'h38) io_oe <= 4'b0000;
+                        if (cmd_reg == 8'h02 || cmd_reg == 8'h32 || cmd_reg == 8'h38) io_oe <= 4'b0000;
                         else if (cmd_reg == 8'h6B) io_oe <= 4'b1111;
                         else if (lanes == 4'd1) io_oe <= 4'b0010;
                         else if (lanes == 4'd2) io_oe <= 4'b0011;
