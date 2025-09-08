@@ -2,7 +2,6 @@ src/csr.v
 src/cmd_engine.v
 src/fifo_tx.v
 src/fifo_rx.v
-src/qspi_io.v
 src/qspi_fsm.v
 src/xip_engine.v
 src/dma_engine.v

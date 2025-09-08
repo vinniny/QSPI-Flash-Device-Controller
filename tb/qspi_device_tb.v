@@ -42,8 +42,8 @@ module qspi_device_tb;
         id_byte = 0;
         for (i = 0; i < 8; i = i + 1) begin
             #5 qspi_sclk = 1;
-            id_byte = {id_byte[6:0], qspi_io1};
-            #5 qspi_sclk = 0;
+            #1 id_byte = {id_byte[6:0], qspi_io1}; // sample after edge for stability
+            #4 qspi_sclk = 0;
         end
         qspi_cs_n = 1;
         if (id_byte !== 8'hC2) $fatal(1, "ID byte mismatch %h", id_byte);

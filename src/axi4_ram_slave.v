@@ -1,126 +1,90 @@
-/*
- * axi4_ram_slave.v - Simple AXI4-Lite RAM slave
- *
- * - 32-bit data bus, word-aligned accesses
- * - Single outstanding transaction per channel
- * - Supports byte strobes on writes
- * - Synchronous active-low reset
- */
+// AXI4 Slave Memory Model with deterministic read data
+module axi4_ram_slave (
+    input wire 		clk,
+    input wire 		rst_n,
 
-module axi4_ram_slave #(
-  parameter integer ADDR_WIDTH = 32,
-  parameter integer MEM_WORDS  = 1024
-)(
-  input  wire                    clk,
-  input  wire                    resetn,
+    // Write address channel
+    input wire 		awvalid,
+    input wire [31:0] 	awaddr,
+    output reg 		awready,
 
-  // Write address channel
-  input  wire [ADDR_WIDTH-1:0]   awaddr,
-  input  wire                    awvalid,
-  output reg                     awready,
+    // Write data channel
+    input wire 		wvalid,
+    input wire [31:0] 	wdata,
+    input wire [3:0] 	wstrb,
+    output reg 		wready,
 
-  // Write data channel
-  input  wire [31:0]             wdata,
-  input  wire [3:0]              wstrb,
-  input  wire                    wvalid,
-  output reg                     wready,
+    // Write response channel
+    output reg 		bvalid,
+    input wire 		bready,
 
-  // Write response channel
-  output reg  [1:0]              bresp,
-  output reg                     bvalid,
-  input  wire                    bready,
+    // Read address channel
+    input wire 		arvalid,
+    input wire [31:0] 	araddr,
+    output reg 		arready,
 
-  // Read address channel
-  input  wire [ADDR_WIDTH-1:0]   araddr,
-  input  wire                    arvalid,
-  output reg                     arready,
-
-  // Read data channel
-  output reg  [31:0]             rdata,
-  output reg  [1:0]              rresp,
-  output reg                     rvalid,
-  input  wire                    rready
+    // Read data channel
+    output reg 		rvalid,
+    output reg [31:0] 	rdata,
+    input wire 		rready
 );
 
-  // ------------------------------------------------------------------
-  // Internal memory
-  // ------------------------------------------------------------------
-  reg [31:0] mem [0:MEM_WORDS-1];
-  reg [ADDR_WIDTH-1:0] wr_addr_q;
-  reg [ADDR_WIDTH-1:0] rd_addr_q;
-  reg [31:0] cur;
-  reg aw_captured;
+    // Simple RAM (64KB x 32-bit words = 16K entries)
+    reg [31:0] mem [0:16383];
+    wire [13:0] awidx = awaddr[15:2];
+    wire [13:0] aridx = araddr[15:2];
 
-  // ------------------------------------------------------------------
-  // Write channel
-  // ------------------------------------------------------------------
-  always @(posedge clk) begin
-    if (!resetn) begin
-      awready   <= 1'b0;
-      wready    <= 1'b0;
-      bvalid    <= 1'b0;
-      bresp     <= 2'b00;
-      wr_addr_q <= {ADDR_WIDTH{1'b0}};
-      aw_captured <= 1'b0;
-    end else begin
-      // Default deassert
-      awready <= 1'b0;
-      wready  <= 1'b0;
+    integer i;
 
-      // Address accept
-      if (awvalid && !awready && !aw_captured) begin
-        awready    <= 1'b1;
-        wr_addr_q  <= {awaddr[ADDR_WIDTH-1:2], 2'b00};
-        aw_captured<= 1'b1;
-      end
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            for (i = 0; i < 16384; i = i + 1) // initialize with deterministic values
+                mem[i] <= 32'hA5A50000 + i;
+            awready <= 0;
+            wready <= 0;
+            bvalid <= 0;
+            arready <= 0;
+            rvalid <= 0;
+            rdata <= 0;
+        end
+        else begin
+            // Write address handshake
+            if (awready && awvalid)
+                awready <= 1;
+            else
+                awready <= 0;
 
-      // Data accept and write
-      if (wvalid && !wready && aw_captured && !bvalid) begin
-        wready <= 1'b1;
-        // byte strobes
-        cur = mem[wr_addr_q[ADDR_WIDTH-1:2]];
-        if (wstrb[0]) cur[7:0]   = wdata[7:0];
-        if (wstrb[1]) cur[15:8]  = wdata[15:8];
-        if (wstrb[2]) cur[23:16] = wdata[23:16];
-        if (wstrb[3]) cur[31:24] = wdata[31:24];
-        mem[wr_addr_q[ADDR_WIDTH-1:2]] <= cur;
-        bvalid <= 1'b1;
-        bresp  <= 2'b00; // OKAY
-      end
+            // Write data handshake
+            if (wready && wvalid) begin
+                wready <= 1;
+                if (wstrb[0]) mem[awidx][7:0] <= wdata[7:0];
+                if (wstrb[1]) mem[awidx][15:8] <= wdata[15:8];
+                if (wstrb[2]) mem[awidx][23:16] <= wdata[23:16];
+                if (wstrb[3]) mem[awidx][31:24] <= wdata[31:24];
+            end
+            else begin
+                wready <= 0;
+            end
 
-      // Response handshake
-      if (bvalid && bready) begin
-        bvalid      <= 1'b0;
-        aw_captured <= 1'b0;
-      end
+            // Write response
+            if (bvalid && bready)
+                bvalid <= 0;
+
+            // Read address handshake
+            if (arready && arvalid)
+                arready <= 1;
+            else
+                arready <= 0;
+
+            // Read data channel
+            if (arvalid && arready) begin
+                rvalid <= 1;
+                rdata <= mem[aridx];
+            end
+            else if (rvalid && rready) begin
+                rvalid <= 0;
+            end
+        end
     end
-  end
-
-  // ------------------------------------------------------------------
-  // Read channel
-  // ------------------------------------------------------------------
-  always @(posedge clk) begin
-    if (!resetn) begin
-      arready   <= 1'b0;
-      rvalid    <= 1'b0;
-      rresp     <= 2'b00;
-      rdata     <= 32'h0;
-      rd_addr_q <= {ADDR_WIDTH{1'b0}};
-    end else begin
-      arready <= 1'b0;
-
-      if (arvalid && !arready && !rvalid) begin
-        arready   <= 1'b1;
-        rd_addr_q <= {araddr[ADDR_WIDTH-1:2], 2'b00};
-        rdata     <= mem[araddr[ADDR_WIDTH-1:2]];
-        rresp     <= 2'b00; // OKAY
-        rvalid    <= 1'b1;
-      end
-
-      if (rvalid && rready) begin
-        rvalid <= 1'b0;
-      end
-    end
-  end
 
 endmodule

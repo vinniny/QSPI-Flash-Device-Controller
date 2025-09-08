@@ -225,13 +225,27 @@ localparam [3:0]
     CS_HOLD   = 4'd7,
     CS_DONE   = 4'd8,
     ERASE     = 4'd9,  // explicit state for erase-type ops (e.g., 0x20 sector erase)
-    WR_SETUP  = 4'd10; // one-cycle setup before write DATA to allow TX prefetch
+    WR_SETUP  = 4'd10, // one-cycle setup before write DATA to allow TX prefetch
+    RD_SETUP  = 4'd11; // one-cycle setup before read DATA to ensure IO tri-state
 
 reg [3:0] state, state_n;
 reg       cs_n_n;
-reg [1:0] cs_cnt, cs_cnt_n;
+// Expand CS hold counter to allow longer post-command high times
+reg [7:0] cs_cnt, cs_cnt_n;
+// One-shot warmup for READ data to avoid sampling too early
+reg       rd_warmup, rd_warmup_n;
+reg [3:0] rd_warmup_cnt, rd_warmup_cnt_n; // number of sample ticks to skip at read start
+// Latch command direction to decide post-command hold extension for writes
+reg       is_write_cmd, is_write_cmd_n;
+reg       post_hold_write, post_hold_write_n;
 
-assign done = (state == CS_DONE) || (state == CS_HOLD);
+// Parameter: additional CS# high cycles after write-like commands
+// to meet tSHSL_W requirements of external flash models
+localparam integer POST_WRITE_HOLD_CYCLES = 8; // core cycles
+
+// Assert done only when CS_DONE post-hold has completed to avoid
+// accepting the next command while CS# high time is still being enforced.
+assign done = ((state == CS_DONE) && (cs_cnt == 8'd0)) || (state == CS_HOLD);
 
 always @(posedge clk or negedge resetn) begin
     if (!resetn) begin
@@ -244,7 +258,11 @@ always @(posedge clk or negedge resetn) begin
         dummy_cnt <= 4'd0;
         io_oe     <= 4'b0;
         sclk_en   <= 1'b0;
-        cs_cnt    <= 2'd0;
+        cs_cnt    <= 8'd0;
+        rd_warmup <= 1'b0;
+        rd_warmup_cnt <= 4'd0;
+        is_write_cmd <= 1'b0;
+        post_hold_write <= 1'b0;
     end else begin
         state     <= state_n;
         cs_n      <= cs_n_n;
@@ -256,6 +274,10 @@ always @(posedge clk or negedge resetn) begin
         io_oe     <= io_oe_n;
         sclk_en   <= sclk_en_n;
         cs_cnt    <= cs_cnt_n;
+        rd_warmup <= rd_warmup_n;
+        rd_warmup_cnt <= rd_warmup_cnt_n;
+        is_write_cmd <= is_write_cmd_n;
+        post_hold_write <= post_hold_write_n;
     end
 end
 
@@ -273,6 +295,10 @@ always @* begin
     rx_data_fifo = 32'b0;
     cs_n_n       = cs_n;
     cs_cnt_n     = cs_cnt;
+    is_write_cmd_n = is_write_cmd;
+    post_hold_write_n = post_hold_write;
+    rd_warmup_n  = rd_warmup;
+    rd_warmup_cnt_n = rd_warmup_cnt;
 
     // Identify erase-type commands (sector/block/chip)
     // Used to optionally enter ERASE state after address phase
@@ -289,7 +315,14 @@ always @* begin
                 lanes_n   = cmd_lanes_eff;
                 shreg_n   = {cmd_opcode, 24'b0};
                 bit_cnt_n = 6'd0;
-                cs_cnt_n  = cs_delay;  // load CS setup counter
+                cs_cnt_n  = {6'd0, cs_delay};  // load CS setup counter
+                is_write_cmd_n = ~dir;          // latch direction for this command (dir=0 means write data phase)
+                // Treat certain opcodes as write-like (require extra CS# post hold)
+                // WREN(0x06), WRSR(0x01), PP(0x02), SE(0x20), BE(0xD8), CE(0xC7/0x60)
+                post_hold_write_n = (~dir) ||
+                                     (cmd_opcode==8'h06) || (cmd_opcode==8'h01) || (cmd_opcode==8'h02) ||
+                                     (cmd_opcode==8'h20) || (cmd_opcode==8'hD8) ||
+                                     (cmd_opcode==8'hC7) || (cmd_opcode==8'h60);
             end
         end
 
@@ -334,8 +367,10 @@ always @* begin
                         lanes_n     = data_lanes_eff;
                         io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
                         byte_cnt_n  = 32'd0;
-                        if (dir)
-                            state_n = DATA_BIT;
+                        if (dir) begin
+                            state_n = RD_SETUP; // ensure IO released before sampling
+                            rd_warmup_n = 1'b1; // and burn first sampling edge
+                        end
                         else
                             state_n = WR_SETUP; // allow TX data to be prefetched and latched
                     end else if ((cmd_opcode==8'h20) || (cmd_opcode==8'hD8) || (cmd_opcode==8'hC7) || (cmd_opcode==8'h60)) begin
@@ -343,7 +378,7 @@ always @* begin
                         state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = cs_delay;
+                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end
@@ -370,8 +405,10 @@ always @* begin
                         lanes_n     = data_lanes_eff;
                         io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
                         byte_cnt_n  = 32'd0;
-                        if (dir)
-                            state_n = DATA_BIT;
+                        if (dir) begin
+                            state_n = RD_SETUP;
+                            rd_warmup_n = 1'b1;
+                        end
                         else
                             state_n = WR_SETUP;
                     end else if ((cmd_opcode==8'h20) || (cmd_opcode==8'hD8)) begin
@@ -379,7 +416,7 @@ always @* begin
                         state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = cs_delay;
+                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end
@@ -402,16 +439,32 @@ always @* begin
                         lanes_n     = data_lanes_eff;
                         io_oe_n     = dir ? 4'b0000 : lane_mask(data_lanes_eff);
                         byte_cnt_n  = 32'd0;
-                        if (dir)
-                            state_n = DATA_BIT;
+                        if (dir) begin
+                            state_n = RD_SETUP;
+                            rd_warmup_n = 1'b1;
+                        end
                         else
                             state_n = WR_SETUP;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = cs_delay;
+                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end
+        end
+
+        // One-cycle read setup to guarantee IO lines are released before sampling
+        RD_SETUP: begin
+            sclk_en_n = 1'b0;                     // hold SCLK idle
+            io_oe_n   = 4'b0000;                  // tri-state all IO
+            // Add SCLK-period warmup specifically for 0x03/0x05 (no dummy)
+            if (cmd_opcode==8'h03)
+                rd_warmup_cnt_n = 4'd2;          // skip 2 sample ticks
+            else if (cmd_opcode==8'h05)
+                rd_warmup_cnt_n = 4'd2;
+            else
+                rd_warmup_cnt_n = 4'd0;
+            state_n   = DATA_BIT;                 // proceed next cycle
         end
 
         DUMMY_BIT: begin
@@ -429,7 +482,7 @@ always @* begin
                         byte_cnt_n = 32'd0;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = cs_delay;
+                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end
@@ -439,25 +492,36 @@ always @* begin
             sclk_en_n = 1'b1;
             io_oe_n   = dir ? 4'b0000 : lane_mask(lanes);
             if (dir) begin
-                if (sample_pulse)
-                    shreg_n = (shreg << lanes) | {28'b0, in_bits};
+                // Skip early sample edges if requested
+                if ( (rd_warmup_cnt==4'd0) && !rd_warmup ) begin
+                    if (sample_pulse)
+                        shreg_n = (shreg << lanes) | {28'b0, in_bits};
+                end
                 if (bit_tick) begin
-                    bit_cnt_n = bit_cnt + {3'b000, lanes};
-                    if (bit_cnt_n >= 6'd32) begin
-                        bit_cnt_n = 6'd0;
-                        byte_cnt_n = byte_cnt + 4;
-                        if (!rx_full) begin
-                            rx_wen = 1'b1;
-                            // Capture the fully updated shift register value
-                            rx_data_fifo = shreg_n;
+                    if (rd_warmup_cnt != 4'd0) begin
+                        rd_warmup_cnt_n = rd_warmup_cnt - 1'b1; // consume SCLK periods
+                    end else if (rd_warmup) begin
+                        rd_warmup_n = 1'b0;                    // burn one extra sample edge
+                    end else begin
+                        bit_cnt_n = bit_cnt + {3'b000, lanes};
+                        if (bit_cnt_n >= 6'd32) begin
+                            bit_cnt_n = 6'd0;
+                            byte_cnt_n = byte_cnt + 4;
+                            if (!rx_full) begin
+                                rx_wen = 1'b1;
+                                // Capture the fully updated shift register value
+                                rx_data_fifo = shreg_n;
+                            end
+                            shreg_n = 32'b0;
                         end
-                        shreg_n = 32'b0;
-                    end
-                    if (byte_cnt_n >= len_bytes) begin
-                        if (xip_cont_read && !cs_auto)
-                            state_n = CS_HOLD;
-                        else
-                            state_n = CS_DONE;
+                        if (byte_cnt_n >= len_bytes) begin
+                            if (xip_cont_read && !cs_auto)
+                                state_n = CS_HOLD;
+                            else begin
+                                state_n = CS_DONE;
+                                cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
+                            end
+                        end
                     end
                 end
             end else begin
@@ -482,8 +546,10 @@ always @* begin
                         else
                             shreg_n = 32'b0;
                     end
-                    if (byte_cnt_n >= len_bytes)
+                    if (byte_cnt_n >= len_bytes) begin
                         state_n = CS_DONE;
+                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
+                    end
                 end
             end
         end
@@ -520,7 +586,7 @@ always @* begin
             cs_n_n    = 1'b0;
             sclk_en_n = 1'b0;
             state_n   = CS_DONE;
-            cs_cnt_n  = cs_delay;
+            cs_cnt_n  = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
         end
 
         default: state_n = IDLE;

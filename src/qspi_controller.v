@@ -138,7 +138,6 @@ module qspi_controller #(
   wire        cpha_w;
   wire        cmd_start_w;
   wire        dma_en_w;
-  wire        mode_en_w;
   wire        hold_en_w;
   wire        wp_en_w;
   wire [2:0]  clk_div_w;
@@ -273,7 +272,6 @@ module qspi_controller #(
     .lsb_first_o        (),
     .cmd_start_o        (cmd_start_w),
     .dma_en_o           (dma_en_w),
-    .mode_en_o          (mode_en_w),
     .hold_en_o          (hold_en_w),
     .wp_en_o            (wp_en_w),
     .cmd_trigger_clr_i  (cmd_trigger_clr_w),
@@ -606,19 +604,9 @@ module qspi_controller #(
   );
 
   // ---------------------------------------------------------
-  // QSPI IO instance (pass-through)
+  // Directly expose FSM SCLK/CS# to pads
   // ---------------------------------------------------------
-  qspi_io u_qspi_io (
-    .clk          (clk),
-    .resetn       (resetn),
-    .sclk_i       (sclk_int),
-    .cs_n_i       (cs_n_int),
-    .io_oe_i      (4'b0000),
-    .out_bits_i   (4'b0000),
-    .sclk_o       (sclk),
-    .cs_n_o       (cs_n),
-    .input_bits_o (),
-    .io           (io)
-  );
+  assign sclk = sclk_int;
+  assign cs_n = cs_n_int;
 
 endmodule

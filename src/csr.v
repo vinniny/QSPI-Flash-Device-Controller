@@ -35,7 +35,6 @@ module csr #(
   output wire lsb_first_o,
   output wire cmd_start_o,
   output wire dma_en_o,
-  output wire mode_en_o,
   output wire hold_en_o,
   output wire wp_en_o,
 
@@ -228,12 +227,13 @@ module csr #(
 
   // ---------------------------------------------------------
   // Write masks
-  wire [31:0] CTRL_WMASK = (HAS_WP!=0) ? 32'h0000_06FF : 32'h0000_02FF; // bit8 excluded
+  // CTRL write mask: exclude CMD_TRIGGER (bit8) and reserve bit7 (no mode_en in CTRL)
+  wire [31:0] CTRL_WMASK = (HAS_WP!=0) ? 32'h0000_067F : 32'h0000_027F;
   wire [31:0] CLKDIV_WMASK = 32'h0000_000F;
   wire [31:0] CSCTRL_WMASK = 32'h0000_001F;
   wire [31:0] XIPCFG_WMASK = 32'h0000_3FFF;
   wire [31:0] XIPCMD_WMASK = 32'h00FF_FFFF;
-  wire [31:0] CMDCFG_WMASK = 32'h0000_1FFF;
+  wire [31:0] CMDCFG_WMASK = 32'h0000_3FFF; // include bit[13] for mode_en
   wire [31:0] CMDOP_WMASK  = 32'h0000_FFFF;
   wire [31:0] CMDDMY_WMASK = 32'h0000_00FF;
   wire [31:0] DMACFG_WMASK = 32'h0000_003F;
@@ -423,7 +423,6 @@ module csr #(
   assign cpha_o        = ctrl_reg[4];
   assign lsb_first_o   = ctrl_reg[5];
   assign dma_en_o      = ctrl_reg[6];
-  assign mode_en_o     = ctrl_reg[7];
   assign hold_en_o     = ctrl_reg[9];
   assign wp_en_o       = (HAS_WP!=0) ? ctrl_reg[10] : 1'b0;
 
@@ -446,7 +445,8 @@ module csr #(
   assign addr_lanes_o  = cmd_cfg_reg[3:2];
   assign data_lanes_o  = cmd_cfg_reg[5:4];
   assign addr_bytes_o  = cmd_cfg_reg[7:6];
-  assign mode_en_cfg_o = mode_en_o;
+  // Mode enable for command path is sourced from CMD_CFG[13] per spec
+  assign mode_en_cfg_o = cmd_cfg_reg[13];
   assign dummy_cycles_o= cmd_cfg_reg[11:8];
   assign is_write_o    = cmd_cfg_reg[12];
   assign opcode_o      = cmd_op_reg[7:0];

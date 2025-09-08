@@ -2,11 +2,11 @@ VCD info: dumpfile qspi_fsm_tb.vcd opened for output.
 [qspi_fsm_tb] Starting
 [qspi_fsm_tb] Pulse start for WREN
 [qspi_fsm_tb] CS low observed at 45000
-[qspi_fsm_tb] Done observed at 225000
+[qspi_fsm_tb] Done observed at 305000
 [qspi_fsm_tb] cs_n after done (5 cycles later) = 1
 [qspi_fsm_tb] Pulse start for DUAL opcode 0xAB
-[qspi_fsm_tb] CS low (dual) at 305000
-[qspi_fsm_tb] Done (dual) at 405000
+[qspi_fsm_tb] CS low (dual) at 385000
+[qspi_fsm_tb] Done (dual) at 565000
 [qspi_fsm_tb] Pulse start for fast-read dummy=8 len=0
-[qspi_fsm_tb] Done (fast-read dummy) at 775000
+[qspi_fsm_tb] Done (fast-read dummy) at 1015000
 QSPI FSM test passed

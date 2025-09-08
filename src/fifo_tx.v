@@ -1,69 +1,52 @@
-/*
- * fifo_tx.v - Transmit FIFO buffering data from APB/DMA to QSPI FSM
- */
-
+// fifo_tx.v - Simple synchronous TX FIFO (non-FWFT)
 module fifo_tx #(
   parameter integer WIDTH = 32,
   parameter integer DEPTH = 16
-) (
+)(
   input  wire                   clk,
   input  wire                   resetn,
 
-  // Write interface from CSR/DMA
+  // Write port
   input  wire                   wr_en_i,
   input  wire [WIDTH-1:0]       wr_data_i,
-
-  // Read interface to FSM
-  input  wire                   rd_en_i,
-  output reg  [WIDTH-1:0]       rd_data_o,
-
-  // Status outputs
   output wire                   full_o,
-  output wire                   empty_o,
-  output reg  [$clog2(DEPTH+1)-1:0] level_o
+  output wire [$clog2(DEPTH):0] level_o,
+
+  // Read port
+  input  wire                   rd_en_i,
+  output wire [WIDTH-1:0]       rd_data_o,
+  output wire                   empty_o
 );
+  reg [WIDTH-1:0] mem [0:DEPTH-1];
+  reg [$clog2(DEPTH)-1:0] wr_ptr, rd_ptr;
+  reg [$clog2(DEPTH):0]   count;
 
-  localparam integer AW = $clog2(DEPTH);
-  localparam [AW:0] DEPTH_VAL = DEPTH[AW:0];
+  assign full_o  = (count == DEPTH[$clog2(DEPTH):0]);
+  assign empty_o = (count == {($clog2(DEPTH)+1){1'b0}});
+  assign rd_data_o = mem[rd_ptr];
+  assign level_o   = count;
 
-  reg [WIDTH-1:0]          mem [0:DEPTH-1];
-  reg [AW-1:0]             wptr;
-  reg [AW-1:0]             rptr;
-  reg [AW:0]               count;
-
-  assign full_o  = (count == DEPTH_VAL);
-  assign empty_o = (count == {(AW+1){1'b0}});
-
-  always @(posedge clk) begin
+  always @(posedge clk or negedge resetn) begin
     if (!resetn) begin
-      wptr     <= {AW{1'b0}};
-      rptr     <= {AW{1'b0}};
-      count    <= {(AW+1){1'b0}};
-      rd_data_o <= {WIDTH{1'b0}};
-      level_o  <= {(AW+1){1'b0}};
+      wr_ptr <= {($clog2(DEPTH)){1'b0}};
+      rd_ptr <= {($clog2(DEPTH)){1'b0}};
+      count  <= {($clog2(DEPTH)+1){1'b0}};
     end else begin
-      // Write operation
+      // write
       if (wr_en_i && !full_o) begin
-        mem[wptr] <= wr_data_i;
-        wptr      <= wptr + 1'b1;
+        mem[wr_ptr] <= wr_data_i;
+        wr_ptr <= wr_ptr + {{($clog2(DEPTH)-1){1'b0}},1'b1};
       end
-
-      // Read operation
+      // read
       if (rd_en_i && !empty_o) begin
-        rd_data_o <= mem[rptr];
-        rptr      <= rptr + 1'b1;
+        rd_ptr <= rd_ptr + {{($clog2(DEPTH)-1){1'b0}},1'b1};
       end
-
-      // Count update
+      // update count
       case ({wr_en_i && !full_o, rd_en_i && !empty_o})
-        2'b10: count <= count + 1'b1;
-        2'b01: count <= count - 1'b1;
+        2'b10: count <= count + {{($clog2(DEPTH)){1'b0}},1'b1};
+        2'b01: count <= count - {{($clog2(DEPTH)){1'b0}},1'b1};
         default: count <= count;
       endcase
-
-      level_o <= count;
     end
   end
-
 endmodule
-

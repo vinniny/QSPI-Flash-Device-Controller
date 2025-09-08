@@ -38,7 +38,6 @@ module csr_tb;
         .lsb_first_o(),
         .cmd_start_o(cmd_start),
         .dma_en_o(),
-        .mode_en_o(),
         .hold_en_o(),
         .wp_en_o(),
         .cmd_trigger_clr_i(cmd_start),

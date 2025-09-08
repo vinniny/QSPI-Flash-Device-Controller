@@ -29,4 +29,4 @@
 [AXI]  B resp OK @1895000
 [AXI]  B resp OK @1905000
 [CSR] RX level 1 -> 0 @1925000 (FIFO_STAT=0x00000100)
-[top_tb] Global timeout reached — finishing.
+Top-level integration test passed
