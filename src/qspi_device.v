@@ -62,6 +62,7 @@ module qspi_device (
         ST_ID_READ    = 4'd9;
 
     reg [3:0]   state = ST_IDLE;
+    reg [1:0]   id_idx = 2'd0; // index for JEDEC ID bytes
     
     reg [31:0]  bit_cnt = 32'd0;       // bits shifted in current phase
     reg [31:0]  nxt_bit_cnt = 32'd0;   // bits to shift in current phase
@@ -114,11 +115,12 @@ module qspi_device (
                         bit_cnt <= 6'd0;
                         byte_cnt <= 6'd0;
                         case (nxt_cmd_reg)
-                            8'h9F: begin // Read JEDEC ID
+                            8'h9F: begin // Read JEDEC ID (3 bytes)
                                 state <= ST_ID_READ;
                                 lanes <= 4'd1;
                                 dummy_cycles <= 5'd0;
-                                shift_out <= id_reg[23:16]; // first byte
+                                id_idx <= 2'd0;
+                                shift_out <= id_reg[23:16]; // first byte (manufacturer)
                                 io_oe <= 4'b0010; // drive IO1 (SO)
                             end
                             8'h05: begin // Read Status
@@ -308,12 +310,22 @@ module qspi_device (
                     end
                 end
                 ST_ID_READ: begin
+                    // Stream out 24 bits: manufacturer, memory type, capacity
                     io_do[1] = shift_out[7];
                     shift_out <= shift_out << 1;
                     bit_cnt <= bit_cnt + 1;
                     if (bit_cnt == 7) begin
                         bit_cnt <= 0;
-                        state <= ST_IDLE;
+                        if (id_idx == 2'd0) begin
+                            id_idx <= 2'd1;
+                            shift_out <= id_reg[15:8];
+                        end else if (id_idx == 2'd1) begin
+                            id_idx <= 2'd2;
+                            shift_out <= id_reg[7:0];
+                        end else begin
+                            // After 3 bytes, return to idle (host should deassert CS)
+                            state <= ST_IDLE;
+                        end
                     end
                 end
             endcase

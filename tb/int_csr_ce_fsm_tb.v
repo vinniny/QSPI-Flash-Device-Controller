@@ -122,7 +122,7 @@ module int_csr_ce_fsm_tb;
   begin @(posedge clk); psel<=1;penable<=0;pwrite<=1;paddr<=addr;pwdata<=data;pstrb<=4'hF; @(posedge clk); penable<=1; @(posedge clk);
         psel<=0;penable<=0;pwrite<=0;paddr<=0;pwdata<=0;pstrb<=0; end endtask
   task apb_read(input [11:0] addr, output [31:0] data);
-  begin @(posedge clk); psel<=1;penable<=0;pwrite<=0;paddr<=addr; @(posedge clk); penable<=1; @(posedge clk); data=prdata; psel<=0; penable<=0; paddr<=0; end endtask
+  begin @(posedge clk); psel<=1;penable<=0;pwrite<=0;paddr<=addr; pstrb<=4'h0; @(posedge clk); penable<=1; @(posedge clk); data=prdata; psel<=0; penable<=0; paddr<=0; pstrb<=4'h0; end endtask
 
   // CSR addrs
   localparam CTRL=12'h004, CLKDIV=12'h014, CS_CTRL=12'h018, CMD_CFG=12'h024, CMD_OP=12'h028, CMD_ADDR=12'h02C, CMD_LEN=12'h030, FIFO_RX=12'h048, FIFO_STAT=12'h04C;

@@ -1,2 +1,5 @@
-qspi_device_tb: FAIL
-int_csr_ce_fsm_tb: FAIL
+csr_tb: PASS
+qspi_fsm_tb: PASS
+fifo_tx_tb: FAIL
+fifo_rx_tb: FAIL
+qspi_device_tb: PASS

@@ -1,88 +1,112 @@
-// AXI4 Slave Memory Model with deterministic read data
-module axi4_ram_slave (
-    input wire 		clk,
-    input wire 		rst_n,
+// AXI4-Lite style RAM slave used by DMA/integration tests
+// Parameterized size and a clean handshake implementation to match testbenches.
+module axi4_ram_slave #(
+    parameter integer ADDR_WIDTH = 32,
+    parameter integer MEM_WORDS  = 16384
+)(
+    input  wire                 clk,
+    input  wire                 resetn,
 
     // Write address channel
-    input wire 		awvalid,
-    input wire [31:0] 	awaddr,
-    output reg 		awready,
+    input  wire [ADDR_WIDTH-1:0] awaddr,
+    input  wire                  awvalid,
+    output reg                   awready,
 
     // Write data channel
-    input wire 		wvalid,
-    input wire [31:0] 	wdata,
-    input wire [3:0] 	wstrb,
-    output reg 		wready,
+    input  wire [31:0]           wdata,
+    input  wire [3:0]            wstrb,
+    input  wire                  wvalid,
+    output reg                   wready,
 
     // Write response channel
-    output reg 		bvalid,
-    input wire 		bready,
+    output reg  [1:0]            bresp,
+    output reg                   bvalid,
+    input  wire                  bready,
 
     // Read address channel
-    input wire 		arvalid,
-    input wire [31:0] 	araddr,
-    output reg 		arready,
+    input  wire [ADDR_WIDTH-1:0] araddr,
+    input  wire                  arvalid,
+    output reg                   arready,
 
     // Read data channel
-    output reg 		rvalid,
-    output reg [31:0] 	rdata,
-    input wire 		rready
+    output reg  [31:0]           rdata,
+    output reg  [1:0]            rresp,
+    output reg                   rvalid,
+    input  wire                  rready
 );
 
-    // Simple RAM (64KB x 32-bit words = 16K entries)
-    reg [31:0] mem [0:16383];
-    wire [13:0] awidx = awaddr[15:2];
-    wire [13:0] aridx = araddr[15:2];
+    // Simple little-endian word RAM
+    reg [31:0] mem [0:MEM_WORDS-1];
+
+    // Internal latches
+    reg [ADDR_WIDTH-1:0] awaddr_q;
+    reg [31:0]           wdata_q;
+    reg [3:0]            wstrb_q;
+    reg                  have_aw;
+    reg                  have_w;
 
     integer i;
+    always @(posedge clk or negedge resetn) begin
+        if (!resetn) begin
+            for (i = 0; i < MEM_WORDS; i = i + 1)
+                mem[i] <= 32'hA5A5_0000 + i;
+            awready  <= 1'b0;
+            wready   <= 1'b0;
+            bvalid   <= 1'b0;
+            bresp    <= 2'b00;
+            arready  <= 1'b0;
+            rvalid   <= 1'b0;
+            rresp    <= 2'b00;
+            rdata    <= 32'h0;
+            awaddr_q <= {ADDR_WIDTH{1'b0}};
+            have_aw  <= 1'b0;
+            have_w   <= 1'b0;
+        end else begin
+            // Default ready when not holding a transaction
+            awready <= !have_aw;
+            wready  <= !have_w;
+            arready <= !rvalid; // ready if no pending read response
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            for (i = 0; i < 16384; i = i + 1) // initialize with deterministic values
-                mem[i] <= 32'hA5A50000 + i;
-            awready <= 0;
-            wready <= 0;
-            bvalid <= 0;
-            arready <= 0;
-            rvalid <= 0;
-            rdata <= 0;
-        end
-        else begin
-            // Write address handshake
-            if (awready && awvalid)
-                awready <= 1;
-            else
-                awready <= 0;
-
-            // Write data handshake
+            // Latch AW when accepted
+            if (awready && awvalid) begin
+                awaddr_q <= awaddr;
+                have_aw  <= 1'b1;
+            end
+            // Latch W when accepted
             if (wready && wvalid) begin
-                wready <= 1;
-                if (wstrb[0]) mem[awidx][7:0] <= wdata[7:0];
-                if (wstrb[1]) mem[awidx][15:8] <= wdata[15:8];
-                if (wstrb[2]) mem[awidx][23:16] <= wdata[23:16];
-                if (wstrb[3]) mem[awidx][31:24] <= wdata[31:24];
+                have_w  <= 1'b1;
+                wdata_q <= wdata;
+                wstrb_q <= wstrb;
             end
-            else begin
-                wready <= 0;
+            // Complete write response
+            if (bvalid && bready) begin
+                bvalid <= 1'b0;
             end
 
-            // Write response
-            if (bvalid && bready)
-                bvalid <= 0;
+            // Perform write when both address and data are captured
+            if (have_aw && have_w && !bvalid) begin
+                integer widx;
+                widx = awaddr_q[ADDR_WIDTH-1:2];
+                if (wstrb_q[0]) mem[widx][7:0]   <= wdata_q[7:0];
+                if (wstrb_q[1]) mem[widx][15:8]  <= wdata_q[15:8];
+                if (wstrb_q[2]) mem[widx][23:16] <= wdata_q[23:16];
+                if (wstrb_q[3]) mem[widx][31:24] <= wdata_q[31:24];
+                bresp  <= 2'b00; // OKAY
+                bvalid <= 1'b1;
+                have_aw<= 1'b0;
+                have_w <= 1'b0;
+            end
 
             // Read address handshake
-            if (arready && arvalid)
-                arready <= 1;
-            else
-                arready <= 0;
-
-            // Read data channel
-            if (arvalid && arready) begin
-                rvalid <= 1;
-                rdata <= mem[aridx];
+            if (arready && arvalid) begin
+                integer ridx;
+                ridx   = araddr[ADDR_WIDTH-1:2];
+                rdata  <= mem[ridx];
+                rresp  <= 2'b00; // OKAY
+                rvalid <= 1'b1;
             end
-            else if (rvalid && rready) begin
-                rvalid <= 0;
+            if (rvalid && rready) begin
+                rvalid <= 1'b0;
             end
         end
     end

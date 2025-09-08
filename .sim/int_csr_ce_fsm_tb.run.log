@@ -1,3 +1,2 @@
-[int2] rx_wen data=xxxxxxxx time=7035000
-FATAL: tb/int_csr_ce_fsm_tb.v:147: int_csr_ce_fsm: expected 7FFFFFFF/FFFFFFFF got xxxxxxxx
-       Time: 7045000 Scope: int_csr_ce_fsm_tb
+[int2] rx_wen data=ffffffff time=7035000
+CSR+CE+FSM integration test passed

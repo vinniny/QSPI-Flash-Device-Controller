@@ -90,10 +90,13 @@ module dma_engine_tb;
     if (tx_we) begin
       cap[wcnt] <= tx_data; wcnt <= wcnt + 1;
     end
+    // FWFT-like behavior for RX: present head word continuously
+    rx_data <= src[rcnt];
     if (rx_re) begin
-      rx_data <= src[rcnt];
-      if (rx_level != 0) rx_level <= rx_level - 1;
-      rcnt <= rcnt + 1;
+      if (rx_level != 0) begin
+        rx_level <= rx_level - 1;
+        rcnt <= rcnt + 1;
+      end
     end
   end
 

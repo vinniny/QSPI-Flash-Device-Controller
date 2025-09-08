@@ -29,8 +29,8 @@ module int_csr_ce_fsm_dma_tb;
 
   // FIFOs
   wire [31:0] fifo_tx_data_csr_w; wire fifo_tx_we_csr_w; wire [31:0] fifo_tx_rd_data_w; wire fifo_tx_rd_en_w;
-  wire fifo_tx_full_w, fifo_tx_empty_w; wire [5:0] fifo_tx_level_w;
-  wire fifo_rx_re_csr_w, fifo_rx_re_dma_w; wire [31:0] fifo_rx_rd_data_w; wire fifo_rx_full_w, fifo_rx_empty_w; wire [5:0] fifo_rx_level_w;
+  wire fifo_tx_full_w, fifo_tx_empty_w; wire [4:0] fifo_tx_level_w;
+  wire fifo_rx_re_csr_w, fifo_rx_re_dma_w; wire [31:0] fifo_rx_rd_data_w; wire fifo_rx_full_w, fifo_rx_empty_w; wire [4:0] fifo_rx_level_w;
 
   // CE <-> FSM
   wire fsm_start_w, fsm_done_w; wire fsm_tx_ren_w; wire [31:0] fsm_rx_data_w; wire fsm_rx_wen_w;
@@ -100,7 +100,7 @@ module int_csr_ce_fsm_dma_tb;
   );
 
   // DMA engine and AXI RAM
-  dma_engine #(.ADDR_WIDTH(32), .TX_FIFO_DEPTH(16), .LEVEL_WIDTH(6)) u_dma (
+  dma_engine #(.ADDR_WIDTH(32), .TX_FIFO_DEPTH(16), .LEVEL_WIDTH(5)) u_dma (
     .clk(clk), .resetn(resetn), .dma_en_i(dma_en_w), .dma_dir_i(dma_dir_w), .burst_size_i(burst_size_w), .incr_addr_i(incr_addr_w),
     .dma_addr_i(dma_addr_w), .dma_len_i(dma_len_w),
     .tx_level_i(fifo_tx_level_w), .fifo_tx_data_o(/*unused*/ ), .fifo_tx_we_o(/*unused*/),

@@ -1,0 +1,6 @@
+tb/tb_axi4_ram_slave.v:26: warning: parameter ADDR_WIDTH not found in tb_axi4_ram_slave.dut.
+tb/tb_axi4_ram_slave.v:26: warning: parameter MEM_WORDS not found in tb_axi4_ram_slave.dut.
+tb/tb_axi4_ram_slave.v:26: error: port ``resetn'' is not a port of dut.
+tb/tb_axi4_ram_slave.v:26: error: port ``bresp'' is not a port of dut.
+tb/tb_axi4_ram_slave.v:26: error: port ``rresp'' is not a port of dut.
+3 error(s) during elaboration.

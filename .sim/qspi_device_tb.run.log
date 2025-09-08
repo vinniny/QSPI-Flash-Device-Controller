@@ -1,2 +1,1 @@
-FATAL: tb/qspi_device_tb.v:49: ID byte mismatch zz
-       Time: 170000 Scope: qspi_device_tb
+QSPI device test passed

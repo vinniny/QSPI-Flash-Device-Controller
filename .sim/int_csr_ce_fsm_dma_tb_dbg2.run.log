@@ -1,0 +1,31 @@
+VCD info: dumpfile int_csr_ce_fsm_dma_tb.vcd opened for output.
+[DMA] start: dir=1 addr=00000000 len=4 burst=1 @0
+[FSM] 0 state 0 -> 1 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 3 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 3 -> 5 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 5 -> 6 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 RX_WEN data=ffffffff io1=1 lanes=1
+[DMA] WR: rx_ok beats=1 len=4 @0
+[FSM] 0 state 6 -> 8 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 8 -> 0 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[DMA] AW @0 addr=00000000
+[DMA]  W @0 data=ffffffff
+[DMA]  B @0
+[DMA] WR done beat bytes=4 rem_before=4 @0
+CSR+CE+FSM+DMA integration test passed

@@ -1,5 +1,5 @@
 $date
-	Sun Sep  7 14:16:49 2025
+	Tue Sep  9 00:20:40 2025
 $end
 $version
 	Icarus Verilog
@@ -21,26 +21,26 @@ $var reg 1 * wr_en $end
 $var integer 32 + i [31:0] $end
 $scope module dut $end
 $var wire 1 % clk $end
+$var wire 3 , level_o [2:0] $end
+$var wire 32 - rd_data_o [31:0] $end
 $var wire 1 ' rd_en_i $end
 $var wire 1 ( resetn $end
-$var wire 32 , wr_data_i [31:0] $end
+$var wire 32 . wr_data_i [31:0] $end
 $var wire 1 * wr_en_i $end
 $var wire 1 # full_o $end
 $var wire 1 $ empty_o $end
-$var reg 3 - count [2:0] $end
-$var reg 3 . level_o [2:0] $end
-$var reg 32 / rd_data_o [31:0] $end
-$var reg 2 0 rptr [1:0] $end
-$var reg 2 1 wptr [1:0] $end
+$var reg 3 / count [2:0] $end
+$var reg 2 0 rd_ptr [1:0] $end
+$var reg 2 1 wr_ptr [1:0] $end
 $upscope $end
 $upscope $end
 $enddefinitions $end
 #0
 $dumpvars
-bx 1
-bx 0
-bx /
-bx .
+b0 1
+b0 0
+b0 /
+b0 .
 bx -
 b0 ,
 bx +
@@ -50,21 +50,12 @@ b0 )
 0'
 b0 &
 0%
-x$
-x#
-b0xxx "
+1$
+0#
+b0 "
 bx !
 $end
 #5000
-b0 "
-b0 .
-b0 !
-b0 /
-0#
-1$
-b0 -
-b0 0
-b0 1
 1%
 #10000
 0%
@@ -86,49 +77,51 @@ b1 +
 0%
 #45000
 0$
-b1 -
-b1 1
-b1 )
+b1 "
 b1 ,
+b1 /
+b1 1
+b0 !
+b0 -
+b1 )
+b1 .
 b10 +
 1%
 #50000
 0%
 #55000
-b10 )
+b10 "
 b10 ,
-b1 "
-b1 .
-b10 -
+b10 /
 b10 1
+b10 )
+b10 .
 b11 +
 1%
 #60000
 0%
 #65000
-b10 "
-b10 .
-b11 -
+b11 "
+b11 ,
+b11 /
 b11 1
 b11 )
-b11 ,
+b11 .
 b100 +
 1%
 #70000
 0%
 #75000
-0*
-b11 "
-b11 .
 1#
-b100 -
+b100 "
+b100 ,
+b100 /
 b0 1
+0*
 1%
 #80000
 0%
 #85000
-b100 "
-b100 .
 b0 +
 1%
 #90000
@@ -140,76 +133,13 @@ b0 +
 0%
 #105000
 0#
-b11 -
+b11 "
+b11 ,
+b11 /
+b1 !
+b1 -
 b1 0
 0'
 1%
 #110000
-b1 +
-b1 &
 0%
-#115000
-b11 "
-b11 .
-1'
-1%
-#120000
-0%
-#125000
-0'
-b10 -
-b10 0
-b1 !
-b1 /
-1%
-#130000
-b10 +
-b10 &
-0%
-#135000
-b10 "
-b10 .
-1'
-1%
-#140000
-0%
-#145000
-0'
-b1 -
-b11 0
-b10 !
-b10 /
-1%
-#150000
-b11 +
-b11 &
-0%
-#155000
-b1 "
-b1 .
-1'
-1%
-#160000
-0%
-#165000
-0'
-1$
-b0 -
-b0 0
-b11 !
-b11 /
-1%
-#170000
-b100 +
-b100 &
-0%
-#175000
-b0 "
-b0 .
-1'
-1%
-#180000
-0%
-#185000
-0'
-1%

@@ -1,2 +1,3 @@
 VCD info: dumpfile fifo_rx_tb.vcd opened for output.
-FIFO RX test passed
+FATAL: tb/fifo_rx_tb.v:66: fifo_rx: data mismatch
+       Time: 110000 Scope: fifo_rx_tb

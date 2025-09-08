@@ -1,0 +1,26 @@
+VCD info: dumpfile qspi_fsm_quad_eb_tb.vcd opened for output.
+[FSM] 0 state 0 -> 1 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 state 1 -> 2 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 CMD bit=0 out=1
+[FSM] 0 CMD bit=1 out=1
+[FSM] 0 CMD bit=1 out=1
+[FSM] 0 CMD bit=2 out=1
+[FSM] 0 CMD bit=2 out=1
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 3 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 state 3 -> 4 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 state 4 -> 5 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 state 5 -> 6 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 RX_WEN data=ffffffff io1=1 lanes=4
+[FSM] 0 state 6 -> 8 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[FSM] 0 state 8 -> 0 (op=eb len=4 lanes_cmd=1/addr=4/data=4 dir=1)
+[qspi_fsm_quad_eb_tb] Global timeout reached — finishing.

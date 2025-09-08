@@ -31,18 +31,31 @@ module qspi_device_tb;
         master_do = 0;
         rx = 8'h00;
 
-        // --- Read JEDEC ID ---
+        // --- Read JEDEC ID (3 bytes) ---
         #10 qspi_cs_n = 0; master_oe = 1;
         for (i = 7; i >= 0; i = i - 1) begin
             master_do = (8'h9F >> i) & 1'b1;
             #5 qspi_sclk = 1; #5 qspi_sclk = 0;
         end
         master_oe = 0; rx = 0;
+        // Manufacturer (0xC2)
         for (i = 0; i < 8; i = i + 1) begin
             #5 qspi_sclk = 1; #1 rx = {rx[6:0], qspi_io1}; #4 qspi_sclk = 0;
         end
+        if (rx !== 8'hC2) $fatal(1, "ID[0] mismatch %h", rx);
+        // Memory type (0x20)
+        rx = 0;
+        for (i = 0; i < 8; i = i + 1) begin
+            #5 qspi_sclk = 1; #1 rx = {rx[6:0], qspi_io1}; #4 qspi_sclk = 0;
+        end
+        if (rx !== 8'h20) $fatal(1, "ID[1] mismatch %h", rx);
+        // Capacity (0x17)
+        rx = 0;
+        for (i = 0; i < 8; i = i + 1) begin
+            #5 qspi_sclk = 1; #1 rx = {rx[6:0], qspi_io1}; #4 qspi_sclk = 0;
+        end
+        if (rx !== 8'h17) $fatal(1, "ID[2] mismatch %h", rx);
         qspi_cs_n = 1;
-        if (rx !== 8'hC2) $fatal(1, "ID byte mismatch %h", rx);
 
         // --- Write Enable ---
         #10 qspi_cs_n = 0; master_oe = 1;
@@ -167,4 +180,3 @@ module qspi_device_tb;
         $finish;
     end
 endmodule
-

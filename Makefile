@@ -13,6 +13,7 @@ FLASH_MODEL := docs/MX25L6436F.txt
 UNIT_TESTS := \
   csr_tb \
   qspi_fsm_tb \
+  qspi_fsm_quad_eb_tb \
   fifo_tx_tb \
   fifo_rx_tb \
   qspi_device_tb \

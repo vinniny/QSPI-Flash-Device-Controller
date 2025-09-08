@@ -339,11 +339,13 @@ module axi_read_block (
   reg [31:0] addr_reg;
   reg [15:0] count;
 
+  reg arvalid_r;
   always @(posedge clk) begin
     if (reset) begin
       state   <= IDLE;
       araddr  <= 32'd0;
       arvalid <= 1'b0;
+      arvalid_r <= 1'b0;
       rready  <= 1'b0;
       data_out<= 32'd0;
       wr_en   <= 1'b0;
@@ -352,7 +354,8 @@ module axi_read_block (
       addr_reg<= 32'd0;
       count   <= 16'd0;
     end else begin
-      arvalid <= 1'b0;
+      // Hold ARVALID until handshake
+      arvalid <= arvalid_r;
       rready  <= 1'b0;
       wr_en   <= 1'b0;
       done    <= 1'b0;
@@ -363,12 +366,13 @@ module axi_read_block (
             addr_reg <= {addr[31:2], 2'b00};
             count    <= 16'd0;
             araddr   <= {addr[31:2], 2'b00};
-            arvalid  <= 1'b1;
+            arvalid_r<= 1'b1;
             state    <= ADDR;
           end
         end
         ADDR: begin
-          if (arready) begin
+          if (arvalid && arready) begin
+            arvalid_r <= 1'b0;
             rready <= 1'b1;
             state  <= DATA;
           end
@@ -382,7 +386,7 @@ module axi_read_block (
             if (count + 16'd4 < transfer_size) begin
               addr_reg <= addr_reg + 32'd4;
               araddr   <= addr_reg + 32'd4;
-              arvalid  <= 1'b1;
+              arvalid_r<= 1'b1;
               state    <= ADDR;
             end else begin
               state <= RESP;
@@ -440,14 +444,15 @@ module axi_write_block (
   reg        rd_pending;
   reg [31:0] word_q;
   reg        hold_bready;
+  reg [31:0] pre_word;
 
+  reg awvalid_r, wvalid_r;
   always @(posedge clk) begin
     if (reset) begin
       state   <= IDLE;
       awaddr  <= 32'd0;
-      awvalid <= 1'b0;
-      wdata   <= 32'd0;
-      wvalid  <= 1'b0;
+      awvalid <= 1'b0; awvalid_r <= 1'b0;
+      wdata   <= 32'd0; wvalid <= 1'b0; wvalid_r <= 1'b0;
       wstrb   <= 4'b1111;
       bready  <= 1'b0;
       rd_en   <= 1'b0;
@@ -460,8 +465,9 @@ module axi_write_block (
       word_q    <= 32'd0;
       hold_bready <= 1'b0;
     end else begin
-      awvalid <= 1'b0;
-      wvalid  <= 1'b0;
+      // Hold VALID signals until handshake
+      awvalid <= awvalid_r;
+      wvalid  <= wvalid_r;
       bready  <= 1'b0;
       rd_en   <= 1'b0;
       done    <= 1'b0;
@@ -472,54 +478,54 @@ module axi_write_block (
             addr_reg <= {addr[31:2], 2'b00};
             count    <= 16'd0;
             awaddr   <= {addr[31:2], 2'b00};
-            awvalid  <= 1'b1;
+            awvalid_r<= 1'b1;
             // debug: IDLE->ADDR
             state    <= ADDR;
           end
         end
         ADDR: begin
-          if (awready) begin
+          if (awvalid && awready) begin
 `ifdef DEBUG_DMA
             $display("[DMA] AW @%0t addr=%08h", $time, awaddr);
             aw_seen <= 1'b1;
 `endif
-            // Issue FIFO read now; data becomes valid next cycle
-            if (!empty) begin
-              rd_en      <= 1'b1;
-              have_word  <= 1'b0;
-              rd_pending <= 1'b1;
-              // debug: ADDR->DATA
-              state     <= DATA;
-            end
+            // For generic FIFOs (non-show-ahead), request a word now
+            // Data will be available on the following cycle
+            awvalid_r  <= 1'b0;
+            have_word  <= 1'b0;
+            rd_pending <= 1'b1;
+            pre_word   <= data_in; // snapshot head (FWFT FIFO)
+            rd_en      <= 1'b1; // pulse read enable
+            state      <= DATA;
           end
         end
         DATA: begin
-          // Latch data_in once after rd_en, then present on W channel
+          // For non-show-ahead FIFO, wait one cycle after rd_en
           if (rd_pending) begin
-            // consume the cycle after rd_en to allow FIFO to present data
             rd_pending <= 1'b0;
           end else if (!have_word) begin
-            word_q    <= data_in;
-            wdata     <= data_in;
-            wvalid    <= 1'b1;
+            // Use pre-snapshotted word to tolerate FWFT FIFOs
+            word_q    <= pre_word;
+            wdata     <= pre_word;
+            wvalid_r  <= 1'b1;
             wstrb     <= 4'b1111;
             have_word <= 1'b1;
-            // debug: first data word latched
           end else begin
-            wdata  <= word_q;
-            wvalid <= 1'b1;
+            wdata     <= word_q;
+            wvalid_r  <= 1'b1;
           end
 
           if (wvalid && wready) begin
 `ifdef DEBUG_DMA
             $display("[DMA]  W @%0t data=%08h", $time, wdata);
 `endif
+            // Word consumed
             bready      <= 1'b1;
             hold_bready <= 1'b1;
             count       <= count + 16'd4;
-            // debug: W channel handshake
-            // Always go to RESP to consume B before next address
-            state <= RESP;
+            wvalid_r    <= 1'b0;
+            // Always go to RESP to consume B before next beat
+            state       <= RESP;
           end
         end
         RESP: begin
@@ -532,7 +538,7 @@ module axi_write_block (
             if (count < transfer_size) begin
               // More beats to go: start next address phase
               awaddr   <= addr_reg + 32'd4;
-              awvalid  <= 1'b1;
+              awvalid_r<= 1'b1;
               addr_reg <= addr_reg + 32'd4;
               have_word<= 1'b0;
               // debug: RESP -> ADDR for next beat

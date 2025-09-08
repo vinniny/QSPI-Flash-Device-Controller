@@ -1,0 +1,30 @@
+VCD info: dumpfile checklist_tb.vcd opened for output.
+[PASS]               ID = 1a001081
+[PASS]       CTRL reset = 00000000
+[PASS]     STATUS reset = 00000000
+[PASS]     INT_EN reset = 00000000
+[PASS]    CLK_DIV reset = 00000000
+[PASS]    CS_CTRL reset = 00000001
+[PASS]    XIP_CFG reset = 00000081
+[PASS]    XIP_CMD reset = 0000000b
+[PASS] ocked w/ dma_en) = 0000027d
+[PASS] CTRL enable only = 00000001
+[PASS]      INT_EN mask = 0000001f
+[PASS]     CLK_DIV mask = 00000005
+[PASS]     CS_CTRL mask = 0000000a
+[PASS]     XIP_CFG mask = 00003fff
+[PASS]     XIP_CMD mask = 00ffffff
+[PASS]     CMD_CFG mask = 00003fff
+[PASS]      CMD_OP mask = 0000ffff
+[PASS]   CMD_DUMMY mask = 000000ff
+[PASS]     DMA_CFG mask = 0000003f
+[FAIL] Fast read data xxxxxxxx
+[FAIL] IFO rx_full flag got=00000000 exp=00000001
+[FAIL] DMA data a5a50000
+[PASS] INT_STAT cleared = 00000000
+[PASS]     ERR_STAT set = 0000000f
+[PASS] ERR_STAT cleared = 00000000
+-------------------------------
+Checklist: 22 passed, 3 failed (total 25)
+FATAL: tb/checklist_tb.v:245: checklist_tb: FAIL
+       Time: 271885000 Scope: checklist_tb

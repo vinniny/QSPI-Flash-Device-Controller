@@ -1,2 +1,2 @@
-tb/fifo_tx_tb.v:20: warning: Port 9 (level_o) of fifo_tx expects 3 bits, got 8.
+tb/fifo_tx_tb.v:20: warning: Port 6 (level_o) of fifo_tx expects 3 bits, got 8.
 tb/fifo_tx_tb.v:20:        : Padding 5 high bits of the expression.
