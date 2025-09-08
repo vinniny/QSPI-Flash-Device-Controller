@@ -103,7 +103,8 @@ module dma_engine #(
   reg                     busy_r;
   reg [31:0]              burst_len_r;
 
-  assign busy_o = busy_r;
+  // Consider DMA inactive when dma_en_i is low
+  assign busy_o = busy_r & dma_en_i;
 
   // detect rising edge on dma_en_i
   reg dma_en_d;
@@ -224,6 +225,10 @@ module dma_engine #(
       rd_start       <= 1'b0;
       wr_start       <= 1'b0;
 
+      if (!dma_en_i && !busy_r) begin
+        state     <= S_IDLE;
+        axi_err_o <= 1'b0;
+      end else begin
       case (state)
         S_IDLE: begin
           axi_err_o <= 1'b0;
@@ -304,6 +309,7 @@ module dma_engine #(
 
         default: state <= S_IDLE;
       endcase
+      end
     end
   end
 
@@ -444,7 +450,6 @@ module axi_write_block (
   reg        rd_pending;
   reg [31:0] word_q;
   reg        hold_bready;
-  reg [31:0] pre_word;
 
   reg awvalid_r, wvalid_r;
   always @(posedge clk) begin
@@ -494,19 +499,17 @@ module axi_write_block (
             awvalid_r  <= 1'b0;
             have_word  <= 1'b0;
             rd_pending <= 1'b1;
-            pre_word   <= data_in; // snapshot head (FWFT FIFO)
             rd_en      <= 1'b1; // pulse read enable
             state      <= DATA;
           end
         end
         DATA: begin
-          // For non-show-ahead FIFO, wait one cycle after rd_en
+          // Wait one cycle after rd_en before using data
           if (rd_pending) begin
             rd_pending <= 1'b0;
           end else if (!have_word) begin
-            // Use pre-snapshotted word to tolerate FWFT FIFOs
-            word_q    <= pre_word;
-            wdata     <= pre_word;
+            word_q    <= data_in;
+            wdata     <= data_in;
             wvalid_r  <= 1'b1;
             wstrb     <= 4'b1111;
             have_word <= 1'b1;

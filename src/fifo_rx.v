@@ -23,7 +23,8 @@ module fifo_rx #(
 
   assign full_o   = (count == DEPTH[$clog2(DEPTH):0]);
   assign empty_o  = (count == {($clog2(DEPTH)+1){1'b0}});
-  assign rd_data_o = mem[rd_ptr];
+  reg [WIDTH-1:0] rd_data_r;
+  assign rd_data_o = rd_data_r;
   assign level_o   = count;
 
   always @(posedge clk or negedge resetn) begin
@@ -31,17 +32,17 @@ module fifo_rx #(
       wr_ptr <= {($clog2(DEPTH)){1'b0}};
       rd_ptr <= {($clog2(DEPTH)){1'b0}};
       count  <= {($clog2(DEPTH)+1){1'b0}};
+      rd_data_r <= {WIDTH{1'b0}};
     end else begin
       // write
       if (wr_en_i && !full_o) begin
         mem[wr_ptr] <= wr_data_i;
         wr_ptr <= wr_ptr + {{($clog2(DEPTH)-1){1'b0}},1'b1};
       end
-      // read
       if (rd_en_i && !empty_o) begin
+        rd_data_r <= mem[rd_ptr];
         rd_ptr <= rd_ptr + {{($clog2(DEPTH)-1){1'b0}},1'b1};
       end
-      // update count
       case ({wr_en_i && !full_o, rd_en_i && !empty_o})
         2'b10: count <= count + {{($clog2(DEPTH)){1'b0}},1'b1};
         2'b01: count <= count - {{($clog2(DEPTH)){1'b0}},1'b1};

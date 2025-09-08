@@ -210,17 +210,17 @@ module csr #(
   assign fifo_tx_we_o   = wr_ok & (a==FIFO_TX_ADDR);
   assign fifo_tx_data_o = pwdata;
 
-  // Generate a single-cycle pop pulse for FIFO_RX on the first cycle of read_phase.
-  // Hold prdata stable from fifo_rx_data_q while read_phase remains asserted.
+  // Generate a pop pulse on the first access to FIFO_RX and suppress
+  // additional pops until a different register is touched.
   reg fifo_rx_pop_seen;
   always @(posedge pclk or negedge presetn) begin
     if (!presetn) begin
       fifo_rx_pop_seen <= 1'b0;
     end else begin
-      if (!(read_phase && valid_addr && (a==FIFO_RX_ADDR)))
-        fifo_rx_pop_seen <= 1'b0;             // disarm when not actively reading FIFO
-      else if (!fifo_rx_pop_seen)
-        fifo_rx_pop_seen <= 1'b1;             // arm after first pop cycle
+      if (read_phase && valid_addr && (a==FIFO_RX_ADDR))
+        fifo_rx_pop_seen <= 1'b1;
+      else if (psel && (a!=FIFO_RX_ADDR))
+        fifo_rx_pop_seen <= 1'b0;
     end
   end
   assign fifo_rx_re_o = (read_phase && valid_addr && (a==FIFO_RX_ADDR) && !fifo_rx_pop_seen);
@@ -255,7 +255,11 @@ module csr #(
   // ---------------------------------------------------------
   // CMD_TRIGGER handling (W1S)
   wire cmd_trig_wr = wr_ok & (a==CTRL_ADDR) & pstrb_eff[1] & pwdata[8];
-  wire cmd_trig_ok = cmd_trig_wr & ctrl_reg[0] & ~ctrl_reg[1] & ~busy_i;
+  // evaluate enable/xip_en as they will be after this write to allow
+  // combined enable+trigger transactions
+  wire ctrl_enable_n = (wr_ok && (a==CTRL_ADDR) && pstrb_eff[0]) ? pwdata[0] : ctrl_reg[0];
+  wire ctrl_xip_n    = (wr_ok && (a==CTRL_ADDR) && pstrb_eff[0]) ? pwdata[1] : ctrl_reg[1];
+  wire cmd_trig_ok   = cmd_trig_wr & ctrl_enable_n & ~ctrl_xip_n & ~busy_i;
   reg  cmd_trig_q;
   always @(posedge pclk or negedge presetn) begin
     if (!presetn) cmd_trig_q <= 1'b0;
