@@ -1,3 +1,2 @@
 VCD info: dumpfile fifo_tx_tb.vcd opened for output.
-FATAL: tb/fifo_tx_tb.v:67: fifo_tx: data mismatch exp=00000000 got=00000001 at 0
-       Time: 110000 Scope: fifo_tx_tb
+FIFO TX test passed

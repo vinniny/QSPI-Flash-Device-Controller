@@ -1,0 +1,29 @@
+VCD info: dumpfile xip_engine_tb.vcd opened for output.
+[XIP] 0 AR addr=00000000 start read
+[FSM] 0 state 0 -> 1 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 3 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 3 -> 5 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 5 -> 6 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 RX_WEN data=ffffffff io1=1 lanes=1
+[XIP] 0 FSM done; popping RX
+[FSM] 0 state 6 -> 8 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 8 -> 0 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[XIP] 0 RDATA=ffffffff (valid)
+FATAL: tb/xip_engine_tb.v:101: XIP read mismatch: 00000000
+       Time: 1685000 Scope: xip_engine_tb

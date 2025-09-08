@@ -138,7 +138,8 @@ module xip_engine #(
              S_RD_POP   = 3'd2,
              S_RD_RESP  = 3'd3,
              S_WR_WAIT  = 3'd4,
-             S_WR_RESP  = 3'd5;
+             S_WR_RESP  = 3'd5,
+             S_RD_CAP   = 3'd6;
 
   reg [2:0] state;
 
@@ -243,11 +244,16 @@ module xip_engine #(
 
         S_RD_POP: begin
           fifo_rx_re_o <= 1'b1;       // pop one word
-          state        <= S_RD_RESP;
+          state        <= S_RD_CAP;
+        end
+
+        S_RD_CAP: begin
+          rdata_o <= fifo_rx_data_i;  // capture after pop
+          state   <= S_RD_RESP;
         end
 
         S_RD_RESP: begin
-          rdata_o <= fifo_rx_data_i;
+          
 `ifdef XIP_DEBUG
           if (!rvalid_o) $display("[XIP] %0t RDATA=%08h (valid)", $time, fifo_rx_data_i);
 `endif

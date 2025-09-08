@@ -1,5 +1,5 @@
 $date
-	Tue Sep  9 00:20:40 2025
+	Tue Sep  9 01:44:16 2025
 $end
 $version
 	Icarus Verilog
@@ -106,106 +106,110 @@ $var wire 4 t dummy_cycles_o [3:0] $end
 $var wire 1 u dma_en_o $end
 $var wire 1 v dma_dir_o $end
 $var wire 2 w data_lanes_o [1:0] $end
-$var wire 2 x cs_level_o [1:0] $end
-$var wire 2 y cs_delay_o [1:0] $end
-$var wire 1 z cs_auto_o $end
-$var wire 1 { cpol_o $end
-$var wire 1 | cpha_o $end
-$var wire 2 } cmd_lanes_o [1:0] $end
-$var wire 3 ~ clk_div_o [2:0] $end
-$var wire 4 !" burst_size_o [3:0] $end
-$var wire 2 "" addr_lanes_o [1:0] $end
-$var wire 2 #" addr_bytes_o [1:0] $end
-$var reg 32 $" clk_div_reg [31:0] $end
-$var reg 32 %" cmd_addr_reg [31:0] $end
-$var reg 32 &" cmd_cfg_reg [31:0] $end
-$var reg 1 '" cmd_done_latched $end
-$var reg 32 (" cmd_dummy_reg [31:0] $end
-$var reg 32 )" cmd_len_reg [31:0] $end
-$var reg 32 *" cmd_op_reg [31:0] $end
-$var reg 1 +" cmd_trig_q $end
-$var reg 32 ," cs_ctrl_reg [31:0] $end
-$var reg 32 -" ctrl_reg [31:0] $end
-$var reg 32 ." dma_addr_reg [31:0] $end
-$var reg 32 /" dma_cfg_reg [31:0] $end
-$var reg 1 0" dma_done_latched $end
-$var reg 32 1" dma_len_reg [31:0] $end
-$var reg 32 2" err_stat_reg [31:0] $end
-$var reg 32 3" fifo_rx_data_q [31:0] $end
-$var reg 1 4" fifo_rx_pop_seen $end
-$var reg 1 5" fifo_rx_re_q $end
-$var reg 32 6" int_en_reg [31:0] $end
-$var reg 32 7" int_stat_reg [31:0] $end
-$var reg 32 8" prdata [31:0] $end
+$var wire 1 x ctrl_xip_n $end
+$var wire 1 y ctrl_enable_n $end
+$var wire 2 z cs_level_o [1:0] $end
+$var wire 2 { cs_delay_o [1:0] $end
+$var wire 1 | cs_auto_o $end
+$var wire 1 } cpol_o $end
+$var wire 1 ~ cpha_o $end
+$var wire 2 !" cmd_lanes_o [1:0] $end
+$var wire 3 "" clk_div_o [2:0] $end
+$var wire 4 #" burst_size_o [3:0] $end
+$var wire 2 $" addr_lanes_o [1:0] $end
+$var wire 2 %" addr_bytes_o [1:0] $end
+$var reg 32 &" clk_div_reg [31:0] $end
+$var reg 32 '" cmd_addr_reg [31:0] $end
+$var reg 32 (" cmd_cfg_reg [31:0] $end
+$var reg 1 )" cmd_done_latched $end
+$var reg 32 *" cmd_dummy_reg [31:0] $end
+$var reg 32 +" cmd_len_reg [31:0] $end
+$var reg 32 ," cmd_op_reg [31:0] $end
+$var reg 1 -" cmd_trig_q $end
+$var reg 32 ." cs_ctrl_reg [31:0] $end
+$var reg 32 /" ctrl_reg [31:0] $end
+$var reg 32 0" dma_addr_reg [31:0] $end
+$var reg 32 1" dma_cfg_reg [31:0] $end
+$var reg 1 2" dma_done_latched $end
+$var reg 32 3" dma_len_reg [31:0] $end
+$var reg 32 4" err_stat_reg [31:0] $end
+$var reg 32 5" fifo_rx_data_q [31:0] $end
+$var reg 1 6" fifo_rx_pop_seen $end
+$var reg 1 7" fifo_rx_re_q $end
+$var reg 32 8" int_en_reg [31:0] $end
+$var reg 32 9" int_stat_reg [31:0] $end
+$var reg 32 :" prdata [31:0] $end
 $var reg 1 " pslverr $end
-$var reg 1 9" ro_addr $end
-$var reg 1 :" valid_addr $end
-$var reg 32 ;" xip_cfg_reg [31:0] $end
-$var reg 32 <" xip_cmd_reg [31:0] $end
+$var reg 1 ;" ro_addr $end
+$var reg 1 <" valid_addr $end
+$var reg 32 =" xip_cfg_reg [31:0] $end
+$var reg 32 >" xip_cmd_reg [31:0] $end
 $scope function apply_strb $end
-$var reg 32 =" cur [31:0] $end
-$var reg 32 >" data [31:0] $end
+$var reg 32 ?" cur [31:0] $end
+$var reg 32 @" data [31:0] $end
 $upscope $end
 $scope begin $unm_blk_37 $end
-$var reg 32 ?" next_ctrl [31:0] $end
+$var reg 32 A" next_ctrl [31:0] $end
 $upscope $end
 $upscope $end
 $scope task apb_read $end
-$var reg 12 @" addr [11:0] $end
-$var reg 32 A" data [31:0] $end
-$upscope $end
-$scope task apb_write $end
 $var reg 12 B" addr [11:0] $end
 $var reg 32 C" data [31:0] $end
-$var reg 1 D" err $end
+$upscope $end
+$scope task apb_write $end
+$var reg 12 D" addr [11:0] $end
+$var reg 32 E" data [31:0] $end
+$var reg 1 F" err $end
 $upscope $end
 $upscope $end
 $enddefinitions $end
 #0
 $dumpvars
-xD"
+xF"
+bx E"
+bx D"
 bx C"
 bx B"
 bx A"
 bx @"
 bx ?"
-bx >"
-bx ="
-b1011 <"
-b10000001 ;"
-1:"
-19"
+b1011 >"
+b10000001 ="
+1<"
+1;"
+b0 :"
+b0 9"
 b0 8"
-b0 7"
-b0 6"
-05"
-04"
+07"
+06"
+b0 5"
+b0 4"
 b0 3"
-b0 2"
+02"
 b0 1"
-00"
+b0 0"
 b0 /"
-b0 ."
-b0 -"
-b1 ,"
-0+"
+b1 ."
+0-"
+b0 ,"
+b0 +"
 b0 *"
-b0 )"
+0)"
 b0 ("
-0'"
+b0 '"
 b0 &"
 b0 %"
 b0 $"
 b0 #"
 b0 ""
 b0 !"
-b0 ~
-b0 }
-0|
-0{
-1z
-b0 y
-b0 x
+0~
+0}
+1|
+b0 {
+b0 z
+0y
+0x
 b0 w
 0v
 0u
@@ -302,7 +306,7 @@ $end
 1)
 #20000
 0)
-b0 @"
+b0 B"
 1+
 #25000
 1V
@@ -312,7 +316,7 @@ b0 @"
 0)
 #35000
 b11010000000000001000010000001 #
-b11010000000000001000010000001 8"
+b11010000000000001000010000001 :"
 0V
 1S
 1;
@@ -322,21 +326,21 @@ b11010000000000001000010000001 8"
 0)
 #45000
 b0 #
-b0 8"
+b0 :"
 0S
 0;
 0*
 0,
-b1 C"
-b100 B"
+b1 E"
+b100 D"
 b11010000000000001000010000001 0
-b11010000000000001000010000001 A"
+b11010000000000001000010000001 C"
 1)
 #50000
 0)
 #55000
-09"
-1:"
+0;"
+1<"
 1V
 b1 K
 b1 .
@@ -350,6 +354,7 @@ b100 O
 #60000
 0)
 #65000
+1y
 1\
 0V
 1]
@@ -361,11 +366,11 @@ b100 O
 #75000
 0\
 1$
-19"
-1:"
+1;"
+1<"
 0]
 0;
-b1 -"
+b1 /"
 b0 K
 b0 .
 b0 R
@@ -375,22 +380,22 @@ b0 O
 0/
 0*
 0,
-b1 ?"
-b0 ="
-b1 >"
+b1 A"
+b0 ?"
+b1 @"
 0'
-0D"
+0F"
 1)
 #80000
 0)
 #85000
-b100000001 C"
+b100000001 E"
 1)
 #90000
 0)
 #95000
-09"
-1:"
+0;"
+1<"
 1V
 b100000001 K
 b100000001 .
@@ -418,12 +423,12 @@ b100 O
 0A
 0\
 0B
-19"
-1:"
+1;"
+1<"
 0]
 0;
 1%
-1+"
+1-"
 b0 K
 b0 .
 b0 R
@@ -433,22 +438,22 @@ b0 O
 0/
 0*
 0,
+b1 A"
 b1 ?"
-b1 ="
-b100000001 >"
+b100000001 @"
 1)
 #120000
 0)
 #125000
 0%
-0+"
+0-"
 1&
 1)
 #130000
 0)
 #135000
-09"
-1:"
+0;"
+1<"
 1V
 b100000001 K
 b100000001 .
@@ -475,8 +480,8 @@ b100 O
 #155000
 0\
 0B
-19"
-1:"
+1;"
+1<"
 0]
 0;
 b0 K
@@ -490,17 +495,17 @@ b0 O
 0,
 0A
 0"
-b1 ?"
-b11 C"
+b1 A"
+b11 E"
 0&
 1'
-1D"
+1F"
 1)
 #160000
 0)
 #165000
-09"
-1:"
+0;"
+1<"
 1V
 b11 K
 b11 .
@@ -514,6 +519,7 @@ b100 O
 #170000
 0)
 #175000
+1x
 1\
 0V
 1]
@@ -525,11 +531,11 @@ b100 O
 #185000
 0\
 1d
-19"
-1:"
+1;"
+1<"
 0]
 0;
-b11 -"
+b11 /"
 b0 K
 b0 .
 b0 R
@@ -539,21 +545,21 @@ b0 O
 0/
 0*
 0,
-b11 ?"
-b11 >"
+b11 A"
+b11 @"
 0'
-0D"
+0F"
 1)
 #190000
 0)
 #195000
-b100000011 C"
+b100000011 E"
 1)
 #200000
 0)
 #205000
-09"
-1:"
+0;"
+1<"
 1V
 b100000011 K
 b100000011 .
@@ -579,8 +585,8 @@ b100 O
 #225000
 0\
 0B
-19"
-1:"
+1;"
+1<"
 0]
 0;
 b0 K
@@ -592,15 +598,15 @@ b0 O
 0/
 0*
 0,
+b11 A"
 b11 ?"
-b11 ="
-b100000011 >"
+b100000011 @"
 1)
 #230000
 0)
 #235000
-b0 C"
-b0 B"
+b0 E"
+b0 D"
 1)
 #240000
 0)
@@ -628,5 +634,5 @@ b0 B"
 0*
 0,
 1'
-1D"
+1F"
 1)

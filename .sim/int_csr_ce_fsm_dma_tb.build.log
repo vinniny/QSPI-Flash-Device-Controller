@@ -1,8 +1,0 @@
-tb/int_csr_ce_fsm_dma_tb.v:77: warning: Port 6 (level_o) of fifo_tx expects 5 bits, got 6.
-tb/int_csr_ce_fsm_dma_tb.v:77:        : Padding 1 high bits of the expression.
-tb/int_csr_ce_fsm_dma_tb.v:83: warning: Port 6 (level_o) of fifo_rx expects 5 bits, got 6.
-tb/int_csr_ce_fsm_dma_tb.v:83:        : Padding 1 high bits of the expression.
-tb/int_csr_ce_fsm_dma_tb.v:116: error: port ``resetn'' is not a port of u_ram.
-tb/int_csr_ce_fsm_dma_tb.v:116: error: port ``bresp'' is not a port of u_ram.
-tb/int_csr_ce_fsm_dma_tb.v:116: error: port ``rresp'' is not a port of u_ram.
-3 error(s) during elaboration.

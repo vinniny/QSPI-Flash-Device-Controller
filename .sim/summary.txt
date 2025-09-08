@@ -1,5 +1,13 @@
 csr_tb: PASS
 qspi_fsm_tb: PASS
-fifo_tx_tb: FAIL
-fifo_rx_tb: FAIL
+qspi_fsm_quad_eb_tb: OK
+fifo_tx_tb: PASS
+fifo_rx_tb: PASS
 qspi_device_tb: PASS
+tb_axi4_ram_slave: PASS
+dma_engine_tb: PASS
+int_csr_ce_tb: PASS
+int_csr_ce_fsm_tb: PASS
+int_csr_ce_fsm_dma_tb: PASS
+top_tb: PASS
+top_cmd_tb: FAIL

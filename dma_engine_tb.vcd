@@ -1,5 +1,5 @@
 $date
-	Tue Sep  9 00:52:49 2025
+	Tue Sep  9 02:02:04 2025
 $end
 $version
 	Icarus Verilog
@@ -194,10 +194,10 @@ $var reg 32 ?" wdata_q [31:0] $end
 $var reg 1 # wready $end
 $var reg 4 @" wstrb_q [3:0] $end
 $var integer 32 A" i [31:0] $end
-$scope begin $unm_blk_270 $end
+$scope begin $unm_blk_273 $end
 $var integer 32 B" widx [31:0] $end
 $upscope $end
-$scope begin $unm_blk_271 $end
+$scope begin $unm_blk_274 $end
 $var integer 32 C" ridx [31:0] $end
 $upscope $end
 $upscope $end
@@ -332,7 +332,7 @@ x2
 x1
 x0
 b0 /
-x.
+0.
 0-
 x,
 b0 +
@@ -423,7 +423,6 @@ b0 w
 b0 $"
 b0 o
 0r
-0.
 0p
 01
 0,
@@ -485,7 +484,6 @@ b100 d
 0<
 1q
 b1 u
-1.
 1p
 b10000 t
 b100 o
@@ -741,7 +739,6 @@ b10000 D"
 b100 A
 b100 M
 b0 u
-0.
 0p
 1,
 19
@@ -766,7 +763,6 @@ b100 g
 b100 ]
 0<
 b11 u
-1.
 1p
 b10000 t
 1q
@@ -1197,7 +1193,6 @@ b100000 $"
 09
 #615000
 b0 u
-0.
 0p
 1,
 19

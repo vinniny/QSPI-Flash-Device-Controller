@@ -1,8 +1,2 @@
 VCD info: dumpfile int_csr_ce_fsm_dma_tb.vcd opened for output.
-[DMA] start: dir=1 addr=00000000 len=4 burst=1 @0
-[DMA] WR: rx_ok beats=1 len=4 @0
-[DMA] AW @0 addr=00000000
-[DMA]  W @0 data=ffffffff
-[DMA]  B @0
-[DMA] WR done beat bytes=4 rem_before=4 @0
 CSR+CE+FSM+DMA integration test passed

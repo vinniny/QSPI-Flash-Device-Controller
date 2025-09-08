@@ -18,13 +18,49 @@ VCD info: dumpfile checklist_tb.vcd opened for output.
 [PASS]      CMD_OP mask = 0000ffff
 [PASS]   CMD_DUMMY mask = 000000ff
 [PASS]     DMA_CFG mask = 0000003f
-[FAIL] Fast read data xxxxxxxx
-[FAIL] IFO rx_full flag got=00000000 exp=00000001
-[FAIL] DMA data a5a50000
+[DBG] CSR cmd_start @1135000
+[DBG] FSM start @1145000
+[DBG] CSR cmd_start @1145000
+[DBG] FSM RX_WEN @9885000 data=ffffffff
+[PASS] Fast read data ffffffff
+[DBG] CSR cmd_start @51345000
+[DBG] CSR cmd_start @51355000
+[DBG] FSM start @51355000
+[DBG] FSM RX_WEN @60095000 data=ffffffff
+[DBG] FSM RX_WEN @63935000 data=ffffffff
+[DBG] FSM RX_WEN @67775000 data=ffffffff
+[DBG] FSM RX_WEN @71615000 data=ffffffff
+[DBG] FSM RX_WEN @75455000 data=ffffffff
+[DBG] FSM RX_WEN @79295000 data=ffffffff
+[DBG] FSM RX_WEN @83135000 data=ffffffff
+[DBG] FSM RX_WEN @86975000 data=ffffffff
+[DBG] FSM RX_WEN @90815000 data=ffffffff
+[DBG] FSM RX_WEN @94655000 data=ffffffff
+[DBG] FSM RX_WEN @98495000 data=ffffffff
+[DBG] FSM RX_WEN @102335000 data=ffffffff
+[DBG] FSM RX_WEN @106175000 data=ffffffff
+[DBG] FSM RX_WEN @110015000 data=ffffffff
+[DBG] FSM RX_WEN @113855000 data=ffffffff
+[DBG] FSM RX_WEN @117695000 data=ffffffff
+[PASS] IFO rx_full flag = 00000001
+[DBG] CSR cmd_start @171615000
+[DBG] CSR cmd_start @171625000
+[DBG] CSR cmd_start @171635000
+[DBG] CSR cmd_start @171645000
+[DBG] CSR cmd_start @171655000
+[DBG] CSR cmd_start @171665000
+[DBG] CSR cmd_start @171675000
+[DBG] CSR cmd_start @171685000
+[DBG] CSR cmd_start @171695000
+[DBG] CSR cmd_start @171705000
+[DBG] CSR cmd_start @171715000
+[DBG] FSM start @171725000
+[DBG] CSR cmd_start @171725000
+[DBG] FSM RX_WEN @180465000 data=ffffffff
+[PASS] DMA data ffffffff
 [PASS] INT_STAT cleared = 00000000
 [PASS]     ERR_STAT set = 0000000f
 [PASS] ERR_STAT cleared = 00000000
 -------------------------------
-Checklist: 22 passed, 3 failed (total 25)
-FATAL: tb/checklist_tb.v:243: checklist_tb: FAIL
-       Time: 271795000 Scope: checklist_tb
+Checklist: 25 passed, 0 failed (total 25)
+checklist_tb: PASS
