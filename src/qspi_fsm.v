@@ -475,11 +475,13 @@ always @* begin
                     dummy_cnt_n = dummy_cnt - 1;
                 if (dummy_cnt == 1) begin
                     if (len_bytes != 0) begin
-                        state_n   = DATA_BIT;
-                        lanes_n   = data_lanes_eff;
-                        shreg_n   = dir ? 32'b0 : tx_data_fifo;
-                        io_oe_n   = dir ? 4'b0000 : lane_mask(data_lanes_eff);
-                        byte_cnt_n = 32'd0;
+                        state_n      = DATA_BIT;
+                        lanes_n      = data_lanes_eff;
+                        shreg_n      = dir ? 32'b0 : tx_data_fifo;
+                        io_oe_n      = dir ? 4'b0000 : lane_mask(data_lanes_eff);
+                        byte_cnt_n   = 32'd0;
+                        rd_warmup_n  = dir ? 1'b1 : 1'b0; // skip first sample after dummy for reads
+                        rd_warmup_cnt_n = 4'd0;
                     end else begin
                         state_n = CS_DONE;
                         cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
