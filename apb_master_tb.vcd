@@ -1,5 +1,5 @@
 $date
-	Wed Sep 10 00:07:02 2025
+	Wed Sep 10 00:38:52 2025
 $end
 $version
 	Icarus Verilog
@@ -139,7 +139,6 @@ b0 A
 b0 K
 b0 /
 b0 2
-b0 0
 01
 0.
 0-

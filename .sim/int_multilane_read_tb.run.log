@@ -1,0 +1,3 @@
+VCD info: dumpfile int_multilane_read_tb.vcd opened for output.
+FATAL: tb/int_multilane_read_tb.v:160: DREAD mismatch: 00000000 xxxxxxxx
+       Time: 4395000 Scope: int_multilane_read_tb

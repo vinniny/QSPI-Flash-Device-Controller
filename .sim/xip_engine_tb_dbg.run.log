@@ -1,0 +1,41 @@
+VCD info: dumpfile xip_engine_tb.vcd opened for output.
+[XIP] 0 AR addr=00000000 start read
+[FSM] 0 state 0 -> 1 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 state 1 -> 2 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[FSM] 0 CMD bit=0 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=1 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=2 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=3 out=0
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=4 out=1
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=5 out=0
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=6 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 CMD bit=7 out=1
+[FSM] 0 state 2 -> 3 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_DEV] ADDR captured: 000000 for cmd=0b
+[FSM] 0 state 3 -> 5 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_DEV] READ start (after dummy) @0 first=ff (cmd=0b)
+[FSM] 0 state 5 -> 6 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[QSPI_DEV] READ next @1 byte=ff
+[QSPI_DEV] READ next @2 byte=ff
+[QSPI_DEV] READ next @3 byte=ff
+[QSPI_DEV] READ next @4 byte=ff
+[FSM] 0 RX_WEN data=ffffffff io1=1 lanes=1
+[XIP] 0 FSM done; popping RX
+[FSM] 0 state 6 -> 8 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[XIP] 0 POP RX (level->)
+[FSM] 0 state 8 -> 0 (op=0b len=4 lanes_cmd=1/addr=1/data=1 dir=1)
+[XIP] 0 CAP RX word=00000000
+[XIP] 0 RDATA=00000000 (valid)
+[TB] sample rdata=00000000 u_xip=00000000
+[XIP] 0 RDATA=00000000 (valid)
+[XIP] 0 RDATA=00000000 (valid)
+[TB] AXI read x=00000000 rvalid=1
+FATAL: tb/xip_engine_tb.v:106: XIP read mismatch: 00000000
+       Time: 1695000 Scope: xip_engine_tb

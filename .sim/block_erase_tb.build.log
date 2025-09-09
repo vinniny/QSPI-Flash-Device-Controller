@@ -1,0 +1,3 @@
+tb/block_erase_tb.v:78: warning: task definition for "ctrl_enable" has an empty port declaration list!
+tb/block_erase_tb.v:79: warning: task definition for "ctrl_trigger" has an empty port declaration list!
+tb/block_erase_tb.v:80: warning: task definition for "wait_cmd_done" has an empty port declaration list!

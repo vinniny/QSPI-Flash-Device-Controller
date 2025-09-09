@@ -139,7 +139,10 @@ module xip_engine #(
              S_RD_RESP  = 3'd3,
              S_WR_WAIT  = 3'd4,
              S_WR_RESP  = 3'd5,
-             S_RD_CAP   = 3'd6;
+             S_RD_CAP   = 3'd6,
+             S_RD_WAIT2 = 3'd7;
+  // Note: Use an implicit one-cycle wait by transitioning POP->CAP,
+  // then CAP->RESP in successive cycles; FIFO is non-FWFT.
 
   reg [2:0] state;
 
@@ -162,7 +165,7 @@ module xip_engine #(
       wready_o     <= 1'b0;
       rvalid_o     <= 1'b0;
       bvalid_o     <= 1'b0;
-      rdata_o      <= 32'd0;
+      // hold rdata_o; updated explicitly in S_RD_CAP
       bresp_o      <= 2'b00;
       rresp_o      <= 2'b00;
       tx_data_o    <= 32'd0;
@@ -244,18 +247,27 @@ module xip_engine #(
 
         S_RD_POP: begin
           fifo_rx_re_o <= 1'b1;       // pop one word
-          state        <= S_RD_CAP;
+`ifdef XIP_DEBUG
+          $display("[XIP] %0t POP RX (level->)", $time);
+`endif
+          state        <= S_RD_WAIT2; // allow FIFO output to update
+        end
+
+        S_RD_WAIT2: begin
+          state <= S_RD_CAP;
         end
 
         S_RD_CAP: begin
+`ifdef XIP_DEBUG
+          $display("[XIP] %0t CAP RX word=%08h", $time, fifo_rx_data_i);
+`endif
           rdata_o <= fifo_rx_data_i;  // capture after pop
           state   <= S_RD_RESP;
         end
 
         S_RD_RESP: begin
-          
 `ifdef XIP_DEBUG
-          if (!rvalid_o) $display("[XIP] %0t RDATA=%08h (valid)", $time, fifo_rx_data_i);
+          if (rvalid_o) $display("[XIP] %0t RDATA=%08h (valid)", $time, rdata_o);
 `endif
           if (rvalid_o && rready_i) begin
             busy_r   <= 1'b0;

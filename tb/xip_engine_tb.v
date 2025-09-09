@@ -78,12 +78,16 @@ module xip_engine_tb;
   // AXI helper
   task axi_read(input [31:0] addr, output [31:0] data);
   begin
-    araddr <= addr; arvalid <= 1'b1; rready <= 1'b1;
+    // Issue AR, keep RREADY low until we're ready to handshake
+    araddr <= addr; arvalid <= 1'b1; rready <= 1'b0;
     @(posedge clk); while(!arready) @(posedge clk);
     arvalid <= 1'b0;
+    // Wait for RVALID
     while(!rvalid) @(posedge clk);
-    // Sample after non-blocking updates settle in this cycle
-    #1 data = rdata; rready <= 1'b0;
+    // Capture on next cycle while keeping RREADY low so RVALID stays asserted
+    @(posedge clk); data = rdata; $display("[TB] sample rdata=%08h u_xip=%08h", rdata, u_xip.rdata_o);
+    // Now complete the handshake for one cycle
+    rready <= 1'b1; @(posedge clk); rready <= 1'b0;
   end endtask
 
   integer i; reg [31:0] x;
@@ -98,6 +102,7 @@ module xip_engine_tb;
     xip_en=1'b1;
     repeat(4) @(posedge clk);
     axi_read(32'h0000_0000, x);
+    $display("[TB] AXI read x=%08h rvalid=%b", x, rvalid);
     if (x!==32'hFFFF_FFFF && x!==32'h7FFF_FFFF) $fatal(1, "XIP read mismatch: %08h", x);
     $display("xip_engine_tb: PASS (test passed)");
     $finish;

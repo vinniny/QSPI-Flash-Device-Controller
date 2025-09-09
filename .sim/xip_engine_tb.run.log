@@ -1,0 +1,4 @@
+VCD info: dumpfile xip_engine_tb.vcd opened for output.
+[TB] sample rdata=ffffffff u_xip=ffffffff
+[TB] AXI read x=ffffffff rvalid=1
+xip_engine_tb: PASS (test passed)
