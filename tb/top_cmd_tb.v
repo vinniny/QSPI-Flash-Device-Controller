@@ -92,7 +92,7 @@ module top_cmd_tb;
   );
 
   // Simplified QSPI flash behavioral model (basic MX25L commands)
-  qspi_device flash (
+  qspi_device #(.CS_HIGH_MIN_NS(0)) flash (
     .qspi_sclk(sclk), .qspi_cs_n(cs_n), .qspi_io0(io[0]), .qspi_io1(io[1]), .qspi_io2(io[2]), .qspi_io3(io[3])
   );
 
@@ -346,8 +346,9 @@ module top_cmd_tb;
       end
       if (!wel_ok) $fatal(1, "WEL not set before PROGRAM");
     end
-    // CS# high idle for ~80 sysclks before 0x02
+    // CS# high idle; include real-time delay to satisfy model's $time-based check
     repeat (80) @(posedge clk);
+    #500; // 500 ns guard between last RDSR and PROGRAM
     // Configure program
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h02, 8'h00, 32'h0, 32'd4);
     ctrl_trigger();
@@ -459,8 +460,9 @@ module top_cmd_tb;
       end
       if (!wel_ok) $fatal(1, "WEL not set before ERASE");
     end
-    // Ensure CS# high idle >~80 sysclks before ERASE
+    // Ensure CS# high idle; include real-time delay to satisfy model's $time-based check
     repeat (80) @(posedge clk);
+    #500; // 500 ns guard between last RDSR and ERASE
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h20, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
     // Poll WIP
