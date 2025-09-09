@@ -1,0 +1,3 @@
+tb/apb_master_tb.v:202: warning: task definition for "ctrl_enable" has an empty port declaration list!
+tb/apb_master_tb.v:203: warning: task definition for "ctrl_trigger" has an empty port declaration list!
+tb/apb_master_tb.v:204: warning: task definition for "set_cs_auto" has an empty port declaration list!

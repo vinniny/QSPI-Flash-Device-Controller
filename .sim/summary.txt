@@ -11,3 +11,4 @@ int_csr_ce_fsm_tb: PASS
 int_csr_ce_fsm_dma_tb: PASS
 top_tb: PASS
 top_cmd_tb: FAIL
+apb_master_tb: PASS

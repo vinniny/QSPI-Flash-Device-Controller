@@ -8,3 +8,4 @@ src/dma_engine.v
 src/qspi_device.v
 src/axi4_ram_slave.v
 src/qspi_controller.v
+src/apb_master.v

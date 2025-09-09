@@ -27,7 +27,8 @@ INTEG_TESTS := \
 
 TOP_TESTS := \
   top_tb \
-  top_cmd_tb
+  top_cmd_tb \
+  apb_master_tb
 
 FLASH_TESTS := $(TOP_TESTS)
 

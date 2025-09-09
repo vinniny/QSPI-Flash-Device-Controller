@@ -1,0 +1,42 @@
+VCD info: dumpfile apb_master_tb.vcd opened for output.
+[TB] do_write a=004 d=00000001 @595000
+[APB] t=625000 psel=1 penable=0 pwrite=1 paddr=004 pwdata=00000001 prdata=00000000
+[APB] t=635000 psel=1 penable=1 pwrite=1 paddr=004 pwdata=00000001 prdata=00000000
+[TB] do_write done a=004 @635000
+[TB] do_write a=014 d=00000007 @635000
+[APB] t=665000 psel=1 penable=0 pwrite=1 paddr=014 pwdata=00000007 prdata=00000000
+[APB] t=675000 psel=1 penable=1 pwrite=1 paddr=014 pwdata=00000007 prdata=00000000
+[TB] do_write done a=014 @675000
+[TB] do_read a=014 @675000
+[APB] t=705000 psel=1 penable=0 pwrite=0 paddr=014 pwdata=00000000 prdata=00000000
+[APB] t=715000 psel=1 penable=1 pwrite=0 paddr=014 pwdata=00000000 prdata=00000007
+[TB] do_read done a=014 d=00000007 @715000
+[TB] do_write a=018 d=00000019 @715000
+[APB] t=745000 psel=1 penable=0 pwrite=1 paddr=018 pwdata=00000019 prdata=00000000
+[APB] t=755000 psel=1 penable=1 pwrite=1 paddr=018 pwdata=00000019 prdata=00000000
+[TB] do_write done a=018 @755000
+[TB] do_read a=018 @755000
+[APB] t=785000 psel=1 penable=0 pwrite=0 paddr=018 pwdata=00000000 prdata=00000000
+[APB] t=795000 psel=1 penable=1 pwrite=0 paddr=018 pwdata=00000000 prdata=00000019
+[TB] do_read done a=018 d=00000019 @795000
+[TB] do_write a=024 d=00000840 @795000
+[APB] t=825000 psel=1 penable=0 pwrite=1 paddr=024 pwdata=00000840 prdata=00000000
+[APB] t=835000 psel=1 penable=1 pwrite=1 paddr=024 pwdata=00000840 prdata=00000000
+[TB] do_write done a=024 @835000
+[TB] do_write a=028 d=0000009f @835000
+[APB] t=865000 psel=1 penable=0 pwrite=1 paddr=028 pwdata=0000009f prdata=00000000
+[APB] t=875000 psel=1 penable=1 pwrite=1 paddr=028 pwdata=0000009f prdata=00000000
+[TB] do_write done a=028 @875000
+[TB] do_write a=02c d=00000000 @875000
+[APB] t=905000 psel=1 penable=0 pwrite=1 paddr=02c pwdata=00000000 prdata=00000000
+[APB] t=915000 psel=1 penable=1 pwrite=1 paddr=02c pwdata=00000000 prdata=00000000
+[TB] do_write done a=02c @915000
+[TB] do_write a=030 d=00000004 @915000
+[APB] t=945000 psel=1 penable=0 pwrite=1 paddr=030 pwdata=00000004 prdata=00000000
+[APB] t=955000 psel=1 penable=1 pwrite=1 paddr=030 pwdata=00000004 prdata=00000000
+[TB] do_write done a=030 @955000
+[TB] do_read a=024 @955000
+[APB] t=985000 psel=1 penable=0 pwrite=0 paddr=024 pwdata=00000000 prdata=00000000
+[APB] t=995000 psel=1 penable=1 pwrite=0 paddr=024 pwdata=00000000 prdata=00000840
+[TB] do_read done a=024 d=00000840 @995000
+apb_master unit tests passed
