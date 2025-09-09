@@ -1,49 +1,79 @@
 # QSPI Flash Device Controller
 
-The QSPI Flash Device Controller is a parameterizable Verilog IP core that bridges a host processor to off-chip QSPI flash memories. It supports command mode transactions with optional DMA offload and execute-in-place (XIP) reads through an AXI slave interface. The design is fully synchronous and suitable for FPGA or ASIC integration.
+The QSPI Flash Device Controller is a parameterizable Verilog IP core that bridges a host processor to off-chip QSPI flash memories. It supports command mode transactions with optional DMA offload and execute-in-place (XIP) reads through an AXI4‑Lite slave interface. The design is fully synchronous and suitable for FPGA or ASIC integration.
+
+## Current Status
+- Unit + integration tests: PASS (`make test-fast`)
+- XIP extended tests (quad IO, continuous read, 4‑byte addr): PASS (`make test-extended`)
+- Top/system tests (including flash model): PASS (`make test-all`)
+- VCD and logs are under `.sim/`; recent VCDs are also kept at repo root for convenience.
 
 ## Features
 - Command mode with CPU-driven or DMA-assisted transfers
 - XIP mode for memory-mapped flash reads
-- AXI4 master for DMA and AXI4 slave for XIP
-- QSPI FSM supporting single, dual and quad lanes
+- AXI4‑Lite master for DMA and AXI4‑Lite slave for XIP
+- QSPI FSM supporting single, dual and quad lanes with dummy cycles and mode bits
 - Separate TX/RX FIFOs for clock-domain crossing
 - Parameterizable address widths and FIFO depths
 
+## What’s Recently Fixed/Improved
+- Command mode stability and coverage: “Passed all for CMD mode”
+- XIP path brought up and verified: “XIP working”
+- WEL/WIP handling aligned to flash behavior: “Verify WEL bit and wait for WIP to clear”
+- DMA robustness: “Fix DMA engine disable handling and FIFO TX read”
+
+See `git log` for details and additional incremental fixes.
+
 ## Repository Structure
-- `src/` – current RTL modules (`csr.v`, `cmd_engine.v`, `dma_engine.v`, `qspi_fsm.v`, `qspi_io.v`, `xip_engine.v`, `fifo_tx.v`, `fifo_rx.v`, `qspi_controller.v`)
-- `tb/` – self-checking testbenches and flash model
-- `docs/` – specifications and design notes
+- `src/` – current RTL modules:
+  - `csr.v`, `cmd_engine.v`, `dma_engine.v`, `qspi_fsm.v`, `xip_engine.v`,
+    `fifo_tx.v`, `fifo_rx.v`, `qspi_device.v`, `axi4_ram_slave.v`, `qspi_controller.v`, `apb_master.v`
+- `tb/` – self-checking testbenches and integration benches
+- `docs/` – specifications/design notes and the Macronix MX25L6436F behavioral model
 - `reference/` – supporting reference material
-- `rtl/` – legacy RTL kept for comparison
+- `rtl/` – legacy RTL kept for comparison (not used)
 
-## Getting Started
-Install [Icarus Verilog](http://iverilog.icarus.com/) and [GTKWave](https://gtkwave.sourceforge.net/). Below are example commands to build and run sample testbenches:
+Note: there is no separate `qspi_io.v` in the current implementation; IO handling is integrated into `qspi_fsm.v`.
 
+## How The Design Works
+- Command mode (no DMA): APB CSR programs op → `cmd_engine` asserts start → `qspi_fsm` performs opcode/address/dummy/data → data captured into `fifo_rx` → CPU reads via CSR.
+- Command mode (with DMA): Same front‑end as above, but `dma_engine` moves data between `fifo_rx`/`fifo_tx` and memory over AXI4‑Lite, preventing under/over‑run via FIFO level checks.
+- XIP mode: AXI reads on the slave port go to `xip_engine`, which latches XIP config from CSR, triggers `qspi_fsm` reads, pops `fifo_rx`, and returns 32‑bit words on AXI. Optional single‑word writes are supported when enabled.
+
+### Module Roles
+- `csr.v`: APB3/4 CSR bank. Controls enable/mode, clock/CS settings, command and XIP configuration, DMA settings, FIFO windows, and interrupts. Enforces mutual exclusion of CMD and XIP.
+- `cmd_engine.v`: Latches CMD_* fields and sequences a single transaction. Generates `start`/`done` for the FSM and raises CMD_DONE.
+- `qspi_fsm.v`: Protocol engine for SPI/Dual/Quad. Handles CPOL/CPHA, clock divider, opcode/address/mode/dummy/data phases, and IO tri‑state. Adds CS# setup/hold extension and read/write warm‑ups to satisfy device timing.
+- `fifo_tx.v` / `fifo_rx.v`: 32‑bit FIFOs for write/read paths and CDC buffering.
+- `dma_engine.v`: AXI4‑Lite master to move data between memory and FIFOs. Splits read/write into dedicated blocks, respects FIFO levels, and asserts DMA_DONE.
+- `xip_engine.v`: AXI4‑Lite slave translating memory reads (and optional writes) into QSPI transactions with fixed 4‑byte beats.
+- `qspi_controller.v`: Top‑level that wires CSR, engines, FIFOs, and FSM to APB/AXI and pads, arbitrating between CMD and XIP paths.
+- `qspi_device.v`: Lightweight behavioral QSPI flash for unit/integration tests. Full Macronix model is also available under `docs/` for top/system tests.
+
+## Running Tests
+Prerequisites: Icarus Verilog (iverilog) and GTKWave.
+
+Common targets:
 ```bash
-# QSPI FSM testbench
-iverilog -g2012 -s qspi_fsm_tb -o .sim/qspi_fsm_tb.vvp src/*.v tb/qspi_fsm_tb.v
-vvp .sim/qspi_fsm_tb.vvp
+# Fast unit + integration suite
+make test-fast
 
-# CSR testbench
-iverilog -g2012 -s csr_tb -o .sim/csr_tb.vvp src/*.v tb/csr_tb.v
-vvp .sim/csr_tb.vvp
+# Full suite including top/system tests
+make test-all
 
-# FIFO unit tests (TX and RX)
-iverilog -g2012 -s fifo_tx_tb -o .sim/fifo_tx_tb.vvp src/*.v tb/fifo_tx_tb.v
-vvp .sim/fifo_tx_tb.vvp
-
-iverilog -g2012 -s fifo_rx_tb -o .sim/fifo_rx_tb.vvp src/*.v tb/fifo_rx_tb.v
-vvp .sim/fifo_rx_tb.vvp
+# Extended XIP scenarios (quad IO, continuous read, 4B addressing)
+make test-extended
 ```
+Artifacts:
+- Build logs: `.sim/<tb>.build.log`
+- Run logs: `.sim/<tb>.run.log`
+- Waveforms: `.sim/*.vcd` (some tests also emit VCDs in repo root)
 
-To view waveforms with GTKWave, ensure your testbench emits a VCD and then:
-
-```bash
-gtkwave dump.vcd
-```
-
-These tests exercise the key blocks (FSM, CSR, and FIFOs) using Icarus Verilog.
+## Known Gaps / Next Work
+- AXI is AXI4‑Lite style (single‑beat). If multi‑beat bursts are required, extend DMA and XIP to full AXI4 with burst parameters and alignment handling.
+- Broaden protocol coverage for additional vendor‑specific commands (deep‑power‑down, SFDP reads, protection registers) as needed by the target flash.
+- Hardware bring‑up: add FPGA/ASIC timing constraints and CDC sign‑off; verify IO timing against selected device and clocking.
+- Performance tuning: increase FIFO depths and prefetching as needed for higher throughput, and add optional interrupt/coalescing policies.
 
 ## License
 MIT
