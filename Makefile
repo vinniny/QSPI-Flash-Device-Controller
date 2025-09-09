@@ -50,6 +50,17 @@ test-fast:
 test-all:
 	@$(MAKE) --no-print-directory _run_suite TESTS="$(ALL_TESTS)"
 
+# Extended XIP tests (quad I/O, continuous read, 4-byte addressing)
+.PHONY: test-extended
+EXTENDED_TESTS := \
+  xip_engine_tb \
+  xip_engine_quad_io_tb \
+  xip_engine_cont_read_tb \
+  xip_engine_4b_tb
+
+test-extended:
+	@$(MAKE) --no-print-directory _run_suite TESTS="$(EXTENDED_TESTS)"
+
 _run_suite:
 	@mkdir -p $(SIMDIR)
 	@summary_file="$(SIMDIR)/summary.$$(date +%s).txt"; \
