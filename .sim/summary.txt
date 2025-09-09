@@ -1,6 +1,6 @@
 csr_tb: PASS
 qspi_fsm_tb: PASS
-qspi_fsm_quad_eb_tb: OK
+qspi_fsm_quad_eb_tb: PASS
 fifo_tx_tb: PASS
 fifo_rx_tb: PASS
 qspi_device_tb: PASS

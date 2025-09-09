@@ -69,11 +69,10 @@ module qspi_fsm_dual_tb;
     wait(done);
     $display("[dual_tb] Second DONE at %0t cs_n=%b", $time, cs_n);
 
-    $display("qspi_fsm_dual_tb: PASS");
+    $display("qspi_fsm_dual_tb: PASS (test passed)");
     $finish;
   end
 
   initial begin
-    #1_000_000; $display("[dual_tb] Global timeout"); $finish; end
+    #1_000_000; $display("[dual_tb] Global timeout reached — finishing."); $finish; end
 endmodule
-

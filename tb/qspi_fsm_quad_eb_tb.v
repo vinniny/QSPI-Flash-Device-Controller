@@ -63,7 +63,7 @@ module qspi_fsm_quad_eb_tb;
     if (rx_word !== 32'hFFFF_FFFF) $fatal(1, "Unexpected RX data: %h", rx_word);
     // Allow a few cycles for CS# deassertion; avoid race on done
     repeat (10) @(posedge clk);
-    $display("qspi_fsm_quad_eb_tb: PASS");
+    $display("qspi_fsm_quad_eb_tb: PASS (test passed)");
     $finish;
   end
 

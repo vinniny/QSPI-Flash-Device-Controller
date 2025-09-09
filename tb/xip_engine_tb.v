@@ -99,9 +99,9 @@ module xip_engine_tb;
     repeat(4) @(posedge clk);
     axi_read(32'h0000_0000, x);
     if (x!==32'hFFFF_FFFF && x!==32'h7FFF_FFFF) $fatal(1, "XIP read mismatch: %08h", x);
-    $display("xip_engine_tb: PASS");
+    $display("xip_engine_tb: PASS (test passed)");
     $finish;
   end
 
-  initial begin #1_000_000; $display("[xip_engine_tb] Global timeout"); $finish; end
+  initial begin #1_000_000; $display("[xip_engine_tb] Global timeout reached — finishing."); $finish; end
 endmodule

@@ -1,9 +1,9 @@
 VCD info: dumpfile top_cmd_tb.vcd opened for output.
-VCD warning: tb/top_cmd_tb.v:204: $dumpfile called after $dumpvars started,
+VCD warning: tb/top_cmd_tb.v:202: $dumpfile called after $dumpvars started,
                                   using existing file (top_cmd_tb.vcd).
 VCD warning: ignoring signals in previously scanned scope top_cmd_tb.
-JEDEC ID word: 84402f84
+JEDEC ID word: 84402fff
 [DBG] RDSR after WREN: xxxxxxxx
 [WARN] WEL not set after WREN retry; proceeding to PP and relying on WIP/readback
-FATAL: tb/top_cmd_tb.v:365: Readback after program mismatch: xxxxxxxx
+FATAL: tb/top_cmd_tb.v:363: Readback after program mismatch: xxxxxxxx
        Time: 5829320000 Scope: top_cmd_tb

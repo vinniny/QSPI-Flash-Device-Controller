@@ -59,9 +59,7 @@ module top_cmd_tb;
   wire        cs_n;
   wire [3:0]  io;
 
-  // Pull-ups for HOLD#/SIO3 and WP# pins on the external flash model
-  pullup pu_hold (io[3]);
-  pullup pu_wp   (io[2]);
+  // For simplified qspi_device model, no external pull-ups are required.
 
   wire irq;
 
@@ -93,9 +91,9 @@ module top_cmd_tb;
     .rdata(m_rdata), .rresp(m_rresp), .rvalid(m_rvalid), .rready(m_rready)
   );
 
-  // Full Macronix flash model
-  MX25L6436F flash (
-    .SCLK(sclk), .CS(cs_n), .SI(io[0]), .SO(io[1]), .WP(io[2]), .SIO3(io[3])
+  // Simplified QSPI flash behavioral model (basic MX25L commands)
+  qspi_device flash (
+    .qspi_sclk(sclk), .qspi_cs_n(cs_n), .qspi_io0(io[0]), .qspi_io1(io[1]), .qspi_io2(io[2]), .qspi_io3(io[3])
   );
 
   // Clock
