@@ -1,0 +1,2 @@
+tb/clk_div_tb.v:69: warning: task definition for "ctrl_enable" has an empty port declaration list!
+tb/clk_div_tb.v:70: warning: task definition for "ctrl_trigger" has an empty port declaration list!

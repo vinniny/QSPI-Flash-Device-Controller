@@ -374,6 +374,18 @@ module qspi_controller #(
   // ---------------------------------------------------------
   assign cmd_start_pulse = cmd_start_w & ~xip_en_w & ~xip_busy_w;
 
+  // Latched command configuration from cmd_engine
+  wire [1:0] ce_cmd_lanes_w, ce_addr_lanes_w, ce_data_lanes_w, ce_addr_bytes_w;
+  wire       ce_mode_en_w;
+  wire [3:0] ce_dummy_cycles_w;
+  wire       ce_dir_w; // 0:write 1:read
+  wire       ce_quad_en_w, ce_cs_auto_w, ce_xip_cont_w;
+  wire [7:0] ce_opcode_w, ce_mode_bits_w;
+  wire [ADDR_WIDTH-1:0] ce_addr_w;
+  wire [31:0] ce_len_w;
+  wire [2:0]  ce_clk_div_w;
+  wire       ce_cpol_w, ce_cpha_w;
+
   cmd_engine #(
     .ADDR_WIDTH (ADDR_WIDTH)
   ) u_cmd_engine (
@@ -403,23 +415,23 @@ module qspi_controller #(
     .cpha_i           (cpha_w),
     .start_o          (fsm_start_from_cmd),
     .done_i           (fsm_done_w),
-    .cmd_lanes_o      (),
-    .addr_lanes_o     (),
-    .data_lanes_o     (),
-    .addr_bytes_o     (),
-    .mode_en_o        (),
-    .dummy_cycles_o   (),
-    .dir_o            (),
-    .quad_en_o        (),
-    .cs_auto_o        (),
-    .xip_cont_read_o  (),
-    .opcode_o         (),
-    .mode_bits_o      (),
-    .addr_o           (),
-    .len_o            (),
-    .clk_div_o        (),
-    .cpol_o           (),
-    .cpha_o           ()
+    .cmd_lanes_o      (ce_cmd_lanes_w),
+    .addr_lanes_o     (ce_addr_lanes_w),
+    .data_lanes_o     (ce_data_lanes_w),
+    .addr_bytes_o     (ce_addr_bytes_w),
+    .mode_en_o        (ce_mode_en_w),
+    .dummy_cycles_o   (ce_dummy_cycles_w),
+    .dir_o            (ce_dir_w),
+    .quad_en_o        (ce_quad_en_w),
+    .cs_auto_o        (ce_cs_auto_w),
+    .xip_cont_read_o  (ce_xip_cont_w),
+    .opcode_o         (ce_opcode_w),
+    .mode_bits_o      (ce_mode_bits_w),
+    .addr_o           (ce_addr_w),
+    .len_o            (ce_len_w),
+    .clk_div_o        (ce_clk_div_w),
+    .cpol_o           (ce_cpol_w),
+    .cpha_o           (ce_cpha_w)
   );
 
   // ---------------------------------------------------------
@@ -539,29 +551,29 @@ module qspi_controller #(
   // QSPI FSM instance and signal muxing
   // ---------------------------------------------------------
   assign fsm_start_w      = fsm_start_from_cmd | xip_start_w;
-  assign fsm_cmd_lanes_w  = xip_busy_w ? 2'b00 : cmd_lanes_w;
-  assign fsm_addr_lanes_w = xip_busy_w ? 2'b00 : addr_lanes_w;
-  assign fsm_data_lanes_w = xip_busy_w ? xip_data_lanes_w : data_lanes_w;
-  assign fsm_addr_bytes_w = xip_busy_w ? xip_addr_bytes_w : addr_bytes_w;
-  assign fsm_mode_en_w    = xip_busy_w ? xip_mode_en_w : mode_en_cfg_w;
-  assign fsm_dummy_cycles_w = xip_busy_w ? xip_dummy_cycles_w : dummy_cycles_w;
-  assign fsm_dir_w        = xip_busy_w ? 1'b1 : ~is_write_w;
-  assign fsm_quad_en_w    = quad_en_w;
-  assign fsm_cs_auto_w    = cs_auto_w;
+  assign fsm_cmd_lanes_w  = xip_busy_w ? 2'b00 : ce_cmd_lanes_w;
+  assign fsm_addr_lanes_w = xip_busy_w ? 2'b00 : ce_addr_lanes_w;
+  assign fsm_data_lanes_w = xip_busy_w ? xip_data_lanes_w : ce_data_lanes_w;
+  assign fsm_addr_bytes_w = xip_busy_w ? xip_addr_bytes_w : ce_addr_bytes_w;
+  assign fsm_mode_en_w    = xip_busy_w ? xip_mode_en_w : ce_mode_en_w;
+  assign fsm_dummy_cycles_w = xip_busy_w ? xip_dummy_cycles_w : ce_dummy_cycles_w;
+  assign fsm_dir_w        = xip_busy_w ? 1'b1 : ce_dir_w;
+  assign fsm_quad_en_w    = ce_quad_en_w;
+  assign fsm_cs_auto_w    = ce_cs_auto_w;
   assign fsm_cs_delay_w   = cs_delay_w;
-  assign fsm_xip_cont_w   = xip_busy_w ? xip_cont_read_w : xip_cont_read_w;
-  assign fsm_opcode_w     = xip_busy_w ? xip_read_op_w : opcode_w;
-  assign fsm_mode_bits_w  = xip_busy_w ? xip_mode_bits_w : mode_bits_w;
-  assign fsm_addr_w       = xip_busy_w ? {ADDR_WIDTH{1'b0}} : cmd_addr_w;
-  assign fsm_len_w        = xip_busy_w ? 32'd4 : cmd_len_w;
-  assign fsm_clk_div_w    = {29'd0, clk_div_w};
-  assign fsm_cpol_w       = cpol_w;
-  assign fsm_cpha_w       = cpha_w;
+  assign fsm_xip_cont_w   = xip_busy_w ? xip_cont_read_w : ce_xip_cont_w;
+  assign fsm_opcode_w     = xip_busy_w ? xip_read_op_w : ce_opcode_w;
+  assign fsm_mode_bits_w  = xip_busy_w ? xip_mode_bits_w : ce_mode_bits_w;
+  assign fsm_addr_w       = xip_busy_w ? {ADDR_WIDTH{1'b0}} : ce_addr_w;
+  assign fsm_len_w        = xip_busy_w ? 32'd4 : ce_len_w;
+  assign fsm_clk_div_w    = {29'd0, ce_clk_div_w};
+  assign fsm_cpol_w       = ce_cpol_w;
+  assign fsm_cpha_w       = ce_cpha_w;
   assign fsm_tx_data_w    = xip_busy_w ? xip_tx_data_w : fifo_tx_rd_data_w;
   assign fsm_tx_empty_w   = xip_busy_w ? xip_tx_empty_w : fifo_tx_empty_w;
 
   // Prefetch first TX word for write commands so DATA phase has data ready
-  wire prefetch_tx_w = fsm_start_from_cmd & is_write_w & (cmd_len_w != 32'd0);
+  wire prefetch_tx_w = fsm_start_from_cmd & (~ce_dir_w) & (ce_len_w != 32'd0);
   assign fifo_tx_rd_en_w  = (fsm_tx_ren_w & ~xip_busy_w) | prefetch_tx_w;
 
   qspi_fsm #(

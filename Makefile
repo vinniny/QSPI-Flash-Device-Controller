@@ -17,13 +17,17 @@ UNIT_TESTS := \
   fifo_tx_tb \
   fifo_rx_tb \
   qspi_device_tb \
-  tb_axi4_ram_slave
+  tb_axi4_ram_slave \
+  error_csr_tb
 
 INTEG_TESTS := \
   dma_engine_tb \
   int_csr_ce_tb \
   int_csr_ce_fsm_tb \
-  int_csr_ce_fsm_dma_tb
+  int_csr_ce_fsm_dma_tb \
+  irq_dma_tb \
+  dma_multi_burst_tb \
+  clk_div_tb
 
 TOP_TESTS := \
   top_tb \
@@ -49,15 +53,18 @@ test-all:
 
 _run_suite:
 	@mkdir -p $(SIMDIR)
-	@: > $(SIMDIR)/summary.txt
-	@for t in $(TESTS); do \
+	@summary_file="$(SIMDIR)/summary.$$(date +%s).txt"; \
+	: > $$summary_file; \
+	for t in $(TESTS); do \
 	  echo "[BUILD] $$t"; \
 	  extra=""; \
 	  case " $(FLASH_TESTS) " in *" $$t "*) extra="$(FLASH_MODEL)";; esac; \
-	  $(IVERILOG) -g2012 -s $$t -o $(SIMDIR)/$$t.vvp $(SRC) tb/$$t.v $$extra \
+	  defs=""; \
+	  if [ "$$t" = "top_cmd_tb" ]; then defs="-D QSPI_DEBUG -D FSM_DEBUG -D QSPI_MODEL_DEBUG"; fi; \
+	  $(IVERILOG) -g2012 $$defs -s $$t -o $(SIMDIR)/$$t.vvp $(SRC) tb/$$t.v $$extra \
 	    > $(SIMDIR)/$$t.build.log 2>&1; \
 	  if [ $$? -ne 0 ]; then \
-	    echo "$$t: BUILD_FAIL" | tee -a $(SIMDIR)/summary.txt; \
+	    echo "$$t: BUILD_FAIL" | tee -a $$summary_file; \
 	    echo "  see $(SIMDIR)/$$t.build.log"; \
 	    continue; \
 	  fi; \
@@ -72,11 +79,11 @@ _run_suite:
 	  else \
 	    status=OK; \
 	  fi; \
-	  echo "$$t: $$status" | tee -a $(SIMDIR)/summary.txt; \
+	  echo "$$t: $$status" | tee -a $$summary_file; \
 	done; \
 	echo "----------------"; \
-	cat $(SIMDIR)/summary.txt; \
-	grep -q "FAIL" $(SIMDIR)/summary.txt && exit 1 || true
+	cat $$summary_file; \
+	grep -q "FAIL" $$summary_file && exit 1 || true
 
 clean:
 	rm -rf $(SIMDIR) *.vcd tb/*.vcd

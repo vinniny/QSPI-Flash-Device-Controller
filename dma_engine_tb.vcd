@@ -1,5 +1,5 @@
 $date
-	Tue Sep  9 10:42:45 2025
+	Tue Sep  9 13:57:22 2025
 $end
 $version
 	Icarus Verilog
@@ -194,10 +194,10 @@ $var reg 32 ?" wdata_q [31:0] $end
 $var reg 1 # wready $end
 $var reg 4 @" wstrb_q [3:0] $end
 $var integer 32 A" i [31:0] $end
-$scope begin $unm_blk_273 $end
+$scope begin $unm_blk_274 $end
 $var integer 32 B" widx [31:0] $end
 $upscope $end
-$scope begin $unm_blk_274 $end
+$scope begin $unm_blk_275 $end
 $var integer 32 C" ridx [31:0] $end
 $upscope $end
 $upscope $end

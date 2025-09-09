@@ -1,0 +1,315 @@
+$date
+	Tue Sep  9 13:57:22 2025
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module error_csr_tb $end
+$var wire 1 ! pready $end
+$var wire 1 " pslverr $end
+$var wire 32 # prdata [31:0] $end
+$var wire 1 $ irq $end
+$var reg 1 % axi_err_i $end
+$var reg 1 & busy_i $end
+$var reg 1 ' clk $end
+$var reg 1 ( cmd_done_i $end
+$var reg 1 ) cmd_done_set_i $end
+$var reg 32 * d [31:0] $end
+$var reg 1 + dma_done_i $end
+$var reg 1 , dma_done_set_i $end
+$var reg 1 - err_set_i $end
+$var reg 1 . overrun_i $end
+$var reg 12 / paddr [11:0] $end
+$var reg 1 0 penable $end
+$var reg 1 1 psel $end
+$var reg 4 2 pstrb [3:0] $end
+$var reg 32 3 pwdata [31:0] $end
+$var reg 1 4 pwrite $end
+$var reg 1 5 resetn $end
+$var reg 1 6 rx_full_i $end
+$var reg 4 7 rx_level_i [3:0] $end
+$var reg 1 8 timeout_i $end
+$var reg 1 9 tx_empty_i $end
+$var reg 4 : tx_level_i [3:0] $end
+$var reg 1 ; underrun_i $end
+$var reg 1 < xip_active_i $end
+$var integer 32 = fail [31:0] $end
+$var integer 32 > pass [31:0] $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+b0 >
+b0 =
+0<
+0;
+b0 :
+19
+08
+b0 7
+06
+05
+04
+b0 3
+b0 2
+01
+00
+b0 /
+0.
+0-
+0,
+0+
+bx *
+0)
+0(
+0'
+0&
+0%
+0$
+b0 #
+0"
+1!
+$end
+#5000
+1'
+#10000
+0'
+#15000
+1'
+#20000
+0'
+#25000
+1'
+#30000
+0'
+#35000
+1'
+#40000
+0'
+#45000
+15
+1'
+#50000
+0'
+#55000
+b1111 2
+b11111 3
+b1100 /
+14
+11
+1'
+#60000
+0'
+#65000
+10
+1'
+#70000
+0'
+#75000
+1$
+b0 2
+b0 3
+b0 /
+04
+00
+01
+1)
+1'
+#80000
+0'
+#85000
+0)
+1'
+#90000
+0'
+#95000
+1'
+#100000
+0'
+#105000
+b10000 /
+11
+1'
+#110000
+0'
+#115000
+b1 #
+10
+1'
+#120000
+0'
+#125000
+b0 #
+b0 /
+00
+01
+b10 >
+b1 *
+1'
+#130000
+0'
+#135000
+b1111 2
+b1 3
+b10000 /
+14
+11
+1'
+#140000
+0'
+#145000
+10
+1'
+#150000
+0'
+#155000
+b0 2
+b0 3
+b0 /
+04
+00
+01
+1,
+1'
+#160000
+0'
+#165000
+0,
+1'
+#170000
+0'
+#175000
+1'
+#180000
+0'
+#185000
+b10000 /
+11
+1'
+#190000
+0'
+#195000
+b10 #
+10
+1'
+#200000
+0'
+#205000
+b0 #
+b0 /
+00
+01
+b100 >
+b10 *
+1'
+#210000
+0'
+#215000
+b1111 2
+b10 3
+b10000 /
+14
+11
+1'
+#220000
+0'
+#225000
+10
+1'
+#230000
+0'
+#235000
+0$
+b0 2
+b0 3
+b0 /
+04
+00
+01
+1%
+1;
+1.
+18
+1'
+#240000
+0'
+#245000
+0%
+0;
+0.
+08
+1'
+#250000
+0'
+#255000
+1'
+#260000
+0'
+#265000
+b1010000 /
+11
+1'
+#270000
+0'
+#275000
+b1111 #
+10
+1'
+#280000
+0'
+#285000
+b0 #
+b0 /
+00
+01
+b101 >
+b1111 *
+1'
+#290000
+0'
+#295000
+b1111 2
+b1111 3
+b1010000 /
+14
+11
+1'
+#300000
+0'
+#305000
+10
+1'
+#310000
+0'
+#315000
+b0 2
+b0 3
+b0 /
+04
+00
+01
+1'
+#320000
+0'
+#325000
+b1010000 /
+11
+1'
+#330000
+0'
+#335000
+10
+1'
+#340000
+0'
+#345000
+b0 #
+b0 /
+00
+01
+b110 >
+b0 *
+1'

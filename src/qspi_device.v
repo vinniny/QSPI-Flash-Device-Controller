@@ -148,17 +148,26 @@ module qspi_device (
                                                  (nxt_cmd_reg == 8'hBB || nxt_cmd_reg == 8'h3B) ? 5'd4 : 5'd8;
                             end
                             8'h02, 8'h32, 8'h38: begin
+                                // Page program variants
                                 dummy_cycles <= 5'd0;
                                 if (status_reg[1]) begin
-                                    state <= ST_ADDR;
-                                    lanes <= (nxt_cmd_reg == 8'h02 || nxt_cmd_reg == 8'h32) ? 4'd1 : 4'd4; // 1-1-1 or 1-1-4/4-4-4
+                                    // prepare for address capture
+                                    addr_reg <= {ADDR_BITS{1'b0}};
+                                    shift_in <= 8'd0;
+                                    state    <= ST_ADDR;
+                                    lanes    <= (nxt_cmd_reg == 8'h02 || nxt_cmd_reg == 8'h32) ? 4'd1 : 4'd4; // 1-1-1 or 1-1-4/4-4-4
                                 end else begin
                                     state <= ST_IDLE; // ignore if WEL not set
                                 end
                             end
                             8'h20, 8'hD8: begin
+                                // Sector/block erase — requires WREN
                                 if (status_reg[1]) begin
-                                    state <= ST_ADDR;
+                                    // prepare for address capture (force single-lane address phase)
+                                    addr_reg <= {ADDR_BITS{1'b0}};
+                                    shift_in <= 8'd0;
+                                    lanes    <= 4'd1;
+                                    state    <= ST_ADDR;
                                 end else begin
                                     state <= ST_IDLE; // ignore if WEL not set
                                 end
@@ -181,6 +190,12 @@ module qspi_device (
                     end
                 end
                 ST_ADDR: begin
+                    // Strict check: erase address phase must use single lane
+                    if (cmd_reg == 8'h20 || cmd_reg == 8'hD8) begin
+                        if (lanes != 4'd1) begin
+                            $fatal(1, "[QSPI_DEV] Erase address phase must use single lane (lanes=%0d)", lanes);
+                        end
+                    end
                     if (lanes == 4'd1) begin
                         shift_in <= {shift_in[6:0], io_di[0]};
                     end else if (lanes == 4'd2) begin
@@ -199,15 +214,27 @@ module qspi_device (
                         shift_in <= 8'd0;
                         byte_cnt <= byte_cnt + 1;
                         if (byte_cnt == (ADDR_BITS/8)-1) begin
+`ifdef QSPI_MODEL_DEBUG
+                            $display("[QSPI_DEV] ADDR captured: %06h for cmd=%02h", addr_reg[23:0], cmd_reg);
+`endif
                             if (cmd_reg == 8'hEB) state <= ST_MODE;
                             else if (cmd_reg == 8'h20 || cmd_reg == 8'hD8) begin
-                                integer j;
+                                // Erase region starting at the just-captured address (nxt_addr_reg)
+                                integer j; integer end_addr;
                                 if (cmd_reg == 8'h20) begin
+`ifdef QSPI_MODEL_DEBUG
+                                    end_addr = nxt_addr_reg + SECTOR_SIZE - 1;
+                                    $display("[QSPI_DEV] SE erase at %0h .. %0h", nxt_addr_reg, end_addr);
+`endif
                                     for (j = nxt_addr_reg; j < nxt_addr_reg + SECTOR_SIZE; j = j + 1)
-                                        memory[j] <= 8'hFF;
+                                        if (j < MEM_SIZE) memory[j] <= 8'hFF;
                                 end else if (cmd_reg == 8'hD8) begin
+`ifdef QSPI_MODEL_DEBUG
+                                    end_addr = nxt_addr_reg + 65536 - 1;
+                                    $display("[QSPI_DEV] BE erase at %0h .. %0h", nxt_addr_reg, end_addr);
+`endif
                                     for (j = nxt_addr_reg; j < nxt_addr_reg + 65536; j = j + 1)
-                                        memory[j] <= 8'hFF;
+                                        if (j < MEM_SIZE) memory[j] <= 8'hFF;
                                 end
                                 wip <= 1'b1;
                                 state <= ST_ERASE;
@@ -224,9 +251,14 @@ module qspi_device (
                                 else io_oe <= 4'b1111;
                                 if (cmd_reg == 8'h32) lanes <= 4'd4; // switch to quad input for data phase
                                 shift_out <= memory[addr_reg];
-                            end
+`ifdef QSPI_MODEL_DEBUG
+                                if (cmd_reg == 8'h03 || cmd_reg == 8'h0B) begin
+                                  $display("[QSPI_DEV] READ start @%0h first=%02h (cmd=%02h)", addr_reg, memory[addr_reg], cmd_reg);
+                                end
+`endif
                         end
                     end
+                end
                 end
                 ST_MODE: begin
                     if (lanes == 4'd1) begin
@@ -257,26 +289,40 @@ module qspi_device (
                         else if (lanes == 4'd2) io_oe <= 4'b0011;
                         else io_oe <= 4'b1111;
                         shift_out <= memory[addr_reg];
+`ifdef QSPI_MODEL_DEBUG
+                        if (cmd_reg == 8'h03 || cmd_reg == 8'h0B) begin
+                          $display("[QSPI_DEV] READ start (after dummy) @%0h first=%02h (cmd=%02h)", addr_reg, memory[addr_reg], cmd_reg);
+                        end
+`endif
                     end
                 end
                 ST_DATA_READ: begin
-                    // Drive outputs early in the cycle so external master
-                    // sampling on the same clock edge sees a stable value.
-                    if (lanes == 1) io_do[1] = shift_out[7];
-                    else if (lanes == 2) begin
+                    // MSB-first per lane group (typical device behavior)
+                    if (lanes == 1) begin
+                        io_do[1] = shift_out[7];
+                        shift_out <= shift_out << 1;
+                        bit_cnt <= bit_cnt + 1;
+                    end else if (lanes == 2) begin
                         io_do[0] = shift_out[6];
                         io_do[1] = shift_out[7];
-                    end else if (lanes == 4) begin 
+                        shift_out <= shift_out << 2;
+                        bit_cnt <= bit_cnt + 2;
+                    end else if (lanes == 4) begin
                         io_do[0] = shift_out[4];
                         io_do[1] = shift_out[5];
                         io_do[2] = shift_out[6];
                         io_do[3] = shift_out[7];
+                        shift_out <= shift_out << 4;
+                        bit_cnt <= bit_cnt + 4;
                     end
-                    shift_out <= shift_out << lanes;
-                    bit_cnt <= bit_cnt + lanes;
                     if ((bit_cnt == 7 && lanes == 1) || (bit_cnt == 6 && lanes == 2) || (bit_cnt == 4 && lanes == 4)) begin
                         addr_reg <= addr_reg + 1;
                         shift_out <= memory[addr_reg + 1];
+`ifdef QSPI_MODEL_DEBUG
+                        if (cmd_reg == 8'h03 || cmd_reg == 8'h0B) begin
+                          $display("[QSPI_DEV] READ next @%0h byte=%02h", addr_reg + 1, memory[addr_reg + 1]);
+                        end
+`endif
                         bit_cnt <= 0;
                         if (!continuous_read && byte_cnt == MEM_SIZE - addr_reg) state <= ST_IDLE;
                         byte_cnt <= byte_cnt + 1;
@@ -301,16 +347,17 @@ module qspi_device (
                     state <= ST_IDLE;
                 end
                 ST_STATUS: begin
+                    // Stream status[7:0] repeatedly until CS# goes high (MSB-first)
                     io_do[1] = shift_out[7];
                     shift_out <= shift_out << 1;
                     bit_cnt <= bit_cnt + 1;
                     if (bit_cnt == 7) begin
                         bit_cnt <= 0;
-                        state <= ST_IDLE;
+                        shift_out <= status_reg; // reload current status value
                     end
                 end
                 ST_ID_READ: begin
-                    // Stream out 24 bits: manufacturer, memory type, capacity
+                    // Stream out 24 bits (MSB-first per byte): manufacturer, memory type, capacity
                     io_do[1] = shift_out[7];
                     shift_out <= shift_out << 1;
                     bit_cnt <= bit_cnt + 1;
@@ -323,7 +370,6 @@ module qspi_device (
                             id_idx <= 2'd2;
                             shift_out <= id_reg[7:0];
                         end else begin
-                            // After 3 bytes, return to idle (host should deassert CS)
                             state <= ST_IDLE;
                         end
                     end
