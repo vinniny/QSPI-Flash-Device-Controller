@@ -260,6 +260,8 @@ module top_cmd_tb;
     // 3) WREN (0x06)
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
+    // Ensure CS# high idle after WREN before first RDSR
+    repeat (80) @(posedge clk);
     // Add extra idle before first RDSR to let WEL latch in the model
     repeat (50) @(posedge clk);
     // Debug: read status to see WEL after WREN
@@ -319,9 +321,35 @@ module top_cmd_tb;
     // Re-assert CS delay prior to program to be explicit
     apb_write(CS_CTRL, 32'h0000_0019);
     apb_write(FIFO_TX, 32'hA5A5_A5A5);
+    // WREN with explicit WEL verification and CS# idle before PROGRAM
+    cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
+    ctrl_trigger();
+    // Ensure CS# high idle after WREN before first RDSR
+    repeat (80) @(posedge clk);
+    begin : ensure_wel_prog
+      integer t;
+      reg wel_ok;
+      wel_ok = 1'b0;
+      for (t = 0; t < 400; t = t + 1) begin
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        ctrl_trigger();
+        begin : wait_rx_wel_p
+          integer u;
+          for (u = 0; u < 80; u = u + 1) begin
+            apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable wait_rx_wel_p; @(posedge clk);
+          end
+        end
+        pop_rx(dword);
+        if (dword[1] | dword[9] | dword[17] | dword[25]) begin wel_ok = 1'b1; disable ensure_wel_prog; end
+        if (t==200) begin cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0); ctrl_trigger(); end
+        @(posedge clk);
+      end
+      if (!wel_ok) $fatal(1, "WEL not set before PROGRAM");
+    end
+    // CS# high idle for ~80 sysclks before 0x02
+    repeat (80) @(posedge clk);
+    // Configure program
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h02, 8'h00, 32'h0, 32'd4);
-    // Ensure inter-command CS high time > tSHSL_W by adding idle cycles
-    repeat (20) @(posedge clk);
     ctrl_trigger();
     // Ensure command was accepted: poll STATUS.busy, retry trigger if needed
     begin : pp_start_wait
@@ -406,9 +434,33 @@ module top_cmd_tb;
     if (!rb_ok) $fatal(1, "Readback after program mismatch: 03=%08h 0B=%08h", rd03, rd0b);
 
     // 6) Sector Erase (0x20) @ 0x000000
-    // WREN
+    // WREN with explicit WEL verification and CS# idle before ERASE
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
-    ctrl_trigger(); repeat (20) @(posedge clk);
+    ctrl_trigger();
+    // Verify WEL=1 via RDSR; retry WREN if needed
+    begin : ensure_wel_erase
+      integer t;
+      reg wel_ok;
+      wel_ok = 1'b0;
+      for (t = 0; t < 400; t = t + 1) begin
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        ctrl_trigger();
+        begin : wait_rx_wel_e
+          integer u;
+          for (u = 0; u < 80; u = u + 1) begin
+            apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable wait_rx_wel_e; @(posedge clk);
+          end
+        end
+        pop_rx(dword);
+        if (dword[1] | dword[9] | dword[17] | dword[25]) begin wel_ok = 1'b1; disable ensure_wel_erase; end
+        // If half-way and not set, issue WREN again
+        if (t==200) begin cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0); ctrl_trigger(); end
+        @(posedge clk);
+      end
+      if (!wel_ok) $fatal(1, "WEL not set before ERASE");
+    end
+    // Ensure CS# high idle >~80 sysclks before ERASE
+    repeat (80) @(posedge clk);
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h20, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
     // Poll WIP
@@ -421,7 +473,7 @@ module top_cmd_tb;
     end
     if ( (dword[0] | dword[8] | dword[16] | dword[24]) != 1'b0 ) $fatal(1, "WIP never cleared after erase");
 
-    // Verify erased (robust): try 0x03 exact, else try 0x0B exact
+    // Verify erased (robust): try 0x03 exact, else try 0x0B exact at 0x000000
     repeat (50) @(posedge clk);
     rd03 = 32'h0; rd0b = 32'h0; rb_ok = 0;
     // 0x03
@@ -452,6 +504,30 @@ module top_cmd_tb;
       if (rd0b === 32'hFFFF_FFFF) rb_ok = 1;
     end
     if (!rb_ok) $fatal(1, "Readback after erase mismatch: 03=%08h 0B=%08h", rd03, rd0b);
+
+    // Optional: verify near end of sector (0x07FC)
+    repeat (20) @(posedge clk);
+    rb_ok = 0; rd03 = 32'h0; rd0b = 32'h0;
+    cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b0, 8'h03, 8'h00, 32'h0000_07FC, 32'd4);
+    ctrl_trigger();
+    begin : er03_wait2
+      for (i = 0; i < 4000; i = i + 1) begin
+        apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable er03_wait2; @(posedge clk);
+      end
+    end
+    pop_rx(rd03);
+    if (rd03 === 32'hFFFF_FFFF) rb_ok = 1; else begin
+      repeat (50) @(posedge clk);
+      cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd8, 1'b0, 8'h0B, 8'h00, 32'h0000_07FC, 32'd4);
+      ctrl_trigger();
+      begin : er0b_wait2
+        for (i = 0; i < 4000; i = i + 1) begin
+          apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable er0b_wait2; @(posedge clk);
+        end
+      end
+      pop_rx(rd0b); if (rd0b === 32'hFFFF_FFFF) rb_ok = 1;
+    end
+    if (!rb_ok) $fatal(1, "Readback after erase (end of sector) mismatch: 03=%08h 0B=%08h", rd03, rd0b);
 
     // 7) DMA Read test: read 4B to mem[0]
     cfg_dma(4'd1, 1'b1, 1'b1, 32'h0000_0000, 32'd4);

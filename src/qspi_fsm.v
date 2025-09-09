@@ -240,8 +240,15 @@ reg       is_write_cmd, is_write_cmd_n;
 reg       post_hold_write, post_hold_write_n;
 
 // Parameter: additional CS# high cycles after write-like commands
-// to meet tSHSL_W requirements of external flash models
-localparam integer POST_WRITE_HOLD_CYCLES = 8; // core cycles
+// to meet tSHSL_W requirements of external flash models (controller-centric)
+localparam integer POST_WRITE_HOLD_CYCLES = 64; // core cycles (was 8)
+
+// Scale CS delay units (from CSR[CS_CTRL[4:3]]) to core cycles to
+// provide longer setup/hold without changing register map semantics.
+localparam integer CS_DELAY_SHIFT = 4; // multiply by 16
+
+// Derived CS delay cycles (8-bit) from CSR field
+wire [7:0] cs_delay_cycles = ({6'd0, cs_delay} << CS_DELAY_SHIFT);
 
 // Assert done only when CS_DONE post-hold has completed to avoid
 // accepting the next command while CS# high time is still being enforced.
@@ -378,7 +385,7 @@ always @* begin
                         state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
+                        cs_cnt_n = cs_delay_cycles + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end
@@ -416,7 +423,7 @@ always @* begin
                         state_n = ERASE;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
+                        cs_cnt_n = cs_delay_cycles + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end
@@ -447,7 +454,7 @@ always @* begin
                             state_n = WR_SETUP;
                     end else begin
                         state_n = CS_DONE;
-                        cs_cnt_n = {6'd0, cs_delay} + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
+                        cs_cnt_n = cs_delay_cycles + (post_hold_write ? POST_WRITE_HOLD_CYCLES[7:0] : 8'd0);
                     end
                 end
             end

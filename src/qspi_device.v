@@ -48,6 +48,14 @@ module qspi_device (
     reg [4:0] dummy_cycles = 5'd0;
     reg continuous_read = 1'b0;
 
+    // CS# high-time enforcement (optional strict timing, time-based)
+    // Use simulation time (ns) as timescale is 1ns/1ps.
+    parameter integer CS_HIGH_MIN_NS = 400; // minimum CS# high time between WREN and next op
+    time cs_high_start_t = 0;
+    time cs_high_last_t  = 0;
+    time cs_high_accum_t = 0;  // accumulated CS# high time since WREN
+    reg        last_cmd_wren = 1'b0;
+
     // Protocol state
     localparam [3:0]
         ST_IDLE       = 4'd0,
@@ -91,6 +99,16 @@ module qspi_device (
         end
     end
 
+    // Latch CS# high time window using simulation time
+    always @(posedge qspi_cs_n) begin
+        cs_high_start_t <= $time;
+    end
+    always @(negedge qspi_cs_n) begin
+        cs_high_last_t <= $time - cs_high_start_t;
+        if (last_cmd_wren)
+            cs_high_accum_t <= cs_high_accum_t + ($time - cs_high_start_t);
+    end
+
     always @(posedge qspi_sclk or posedge qspi_cs_n) begin
         if (qspi_cs_n) begin
             // Chip select inactive: reset state
@@ -131,6 +149,8 @@ module qspi_device (
                             end
                             8'h06: begin // Write Enable
                                 status_reg[1] <= 1'b1; // set WEL
+                                last_cmd_wren <= 1'b1;
+                                cs_high_accum_t <= 0;
                                 state <= ST_IDLE;
                             end
                             8'h04: begin // Write Disable
@@ -156,6 +176,12 @@ module qspi_device (
                                     shift_in <= 8'd0;
                                     state    <= ST_ADDR;
                                     lanes    <= (nxt_cmd_reg == 8'h02 || nxt_cmd_reg == 8'h32) ? 4'd1 : 4'd4; // 1-1-1 or 1-1-4/4-4-4
+                                    // Strict timing: require CS high time after WREN
+                                    if (last_cmd_wren && (cs_high_accum_t < CS_HIGH_MIN_NS)) begin
+                                        $fatal(1, "[QSPI_DEV] CS# high time too short between WREN and PROGRAM (got %0t ns, need %0d ns)", cs_high_accum_t, CS_HIGH_MIN_NS);
+                                    end
+                                    last_cmd_wren <= 1'b0;
+                                    cs_high_accum_t <= 0;
                                 end else begin
                                     state <= ST_IDLE; // ignore if WEL not set
                                 end
@@ -168,6 +194,12 @@ module qspi_device (
                                     shift_in <= 8'd0;
                                     lanes    <= 4'd1;
                                     state    <= ST_ADDR;
+                                    // Strict timing: require accumulated CS high time after WREN
+                                    if (last_cmd_wren && (cs_high_accum_t < CS_HIGH_MIN_NS)) begin
+                                        $fatal(1, "[QSPI_DEV] CS# high time too short between WREN and ERASE (got %0t ns, need %0d ns)", cs_high_accum_t, CS_HIGH_MIN_NS);
+                                    end
+                                    last_cmd_wren <= 1'b0;
+                                    cs_high_accum_t <= 0;
                                 end else begin
                                     state <= ST_IDLE; // ignore if WEL not set
                                 end
