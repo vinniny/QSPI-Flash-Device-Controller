@@ -3,3 +3,6 @@ tb/top_cmd_tb.v:151: warning: task definition for "ctrl_set_mode0" has an empty 
 tb/top_cmd_tb.v:152: warning: task definition for "ctrl_trigger" has an empty port declaration list!
 tb/top_cmd_tb.v:153: warning: task definition for "ctrl_dma_enable" has an empty port declaration list!
 tb/top_cmd_tb.v:154: warning: task definition for "set_cs_auto" has an empty port declaration list!
+tb/top_cmd_tb.v:157: warning: task definition for "wait_cmd_done" has an empty port declaration list!
+tb/top_cmd_tb.v:222: warning: task definition for "drain_rx_fifo" has an empty port declaration list!
+tb/top_cmd_tb.v:239: warning: task definition for "wait_flash_ready" has an empty port declaration list!

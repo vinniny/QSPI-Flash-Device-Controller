@@ -84,6 +84,19 @@ module dma_engine #(
     end
   end
 `endif
+`ifdef QSPI_DEBUG
+  reg start_q_qspi;
+  always @(posedge clk) begin
+    if (!resetn) begin
+      start_q_qspi <= 1'b0;
+    end else begin
+      if (start_pulse && !start_q_qspi)
+        $display("[DMA] start: dir=%0d addr=%08h len=%0d burst=%0d @%0t",
+                 dma_dir_i, dma_addr_i, dma_len_i, burst_size_i, $time);
+      start_q_qspi <= start_pulse;
+    end
+  end
+`endif
 
   // ------------------------------------------------------------
   // Derived constants and FIFO status
@@ -271,7 +284,11 @@ module dma_engine #(
         S_WAIT_WR: begin
 `ifdef DEBUG_DMA
           if (rem_bytes_r != 0 && rx_data_ok)
-            $display("[DMA] WR: rx_ok beats=%0d len=%0d @%0t", beats_w, len_w, $time);
+            $display("[DMA] WR: rx_ok beats=%0d len=%0d rx_level=%0d @%0t", beats_w, len_w, rx_level_i, $time);
+`endif
+`ifdef QSPI_DEBUG
+          if (rem_bytes_r != 0 && rx_data_ok)
+            $display("[DMA] WR: rx_ok beats=%0d len=%0d rx_level=%0d @%0t", beats_w, len_w, rx_level_i, $time);
 `endif
           if (rem_bytes_r == 0) begin
             state <= S_DONE;
@@ -522,6 +539,9 @@ module axi_write_block (
 `ifdef DEBUG_DMA
             $display("[DMA]  W @%0t data=%08h", $time, wdata);
 `endif
+`ifdef QSPI_DEBUG
+            $display("[DMA]  W @%0t data=%08h", $time, wdata);
+`endif
             // Word consumed
             bready      <= 1'b1;
             hold_bready <= 1'b1;
@@ -535,6 +555,9 @@ module axi_write_block (
           bready <= hold_bready; // keep asserted until response consumed
           if (bvalid && bready) begin
 `ifdef DEBUG_DMA
+            $display("[DMA]  B @%0t", $time);
+`endif
+`ifdef QSPI_DEBUG
             $display("[DMA]  B @%0t", $time);
 `endif
             hold_bready <= 1'b0;

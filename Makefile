@@ -26,7 +26,6 @@ INTEG_TESTS := \
   int_csr_ce_fsm_tb \
   int_csr_ce_fsm_dma_tb \
   irq_dma_tb \
-  dma_multi_burst_tb \
   clk_div_tb
 
 TOP_TESTS := \

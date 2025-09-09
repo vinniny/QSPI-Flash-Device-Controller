@@ -1,3 +1,4 @@
-tb/dma_multi_burst_tb.v:120: warning: task definition for "ctrl_enable" has an empty port declaration list!
-tb/dma_multi_burst_tb.v:121: warning: task definition for "ctrl_trigger" has an empty port declaration list!
-tb/dma_multi_burst_tb.v:122: warning: task definition for "ctrl_dma_enable" has an empty port declaration list!
+tb/dma_multi_burst_tb.v: No such file or directory
+error: Unable to find the root module "dma_multi_burst_tb" in the Verilog source.
+     : Perhaps ``-s dma_multi_burst_tb'' is incorrect?
+1 error(s) during elaboration.

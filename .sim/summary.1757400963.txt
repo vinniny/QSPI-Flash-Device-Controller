@@ -1,2 +1,0 @@
-qspi_device_tb: PASS
-top_cmd_tb: FAIL

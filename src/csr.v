@@ -264,7 +264,16 @@ module csr #(
   always @(posedge pclk or negedge presetn) begin
     if (!presetn) cmd_trig_q <= 1'b0;
     else if (cmd_trigger_clr_i) cmd_trig_q <= 1'b0;
-    else if (cmd_trig_ok) cmd_trig_q <= 1'b1;
+    else if (cmd_trig_ok) begin
+      cmd_trig_q <= 1'b1;
+`ifdef QSPI_DEBUG
+      $display("[CSR] CMD_TRIGGER accepted (enable=%0d xip=%0d busy=%0d) @%0t", ctrl_enable_n, ctrl_xip_n, busy_i, $time);
+`endif
+    end else if (cmd_trig_wr) begin
+`ifdef QSPI_DEBUG
+      $display("[CSR] CMD_TRIGGER ignored (enable=%0d xip=%0d busy=%0d) @%0t", ctrl_enable_n, ctrl_xip_n, busy_i, $time);
+`endif
+    end
   end
   assign cmd_start_o = cmd_trig_q; // one-cycle pulse when CE acks
 

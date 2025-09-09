@@ -113,6 +113,10 @@ module cmd_engine #(
                 S_IDLE: begin
                     busy_o <= 1'b0;
                     if (cmd_start_i) begin
+`ifdef QSPI_DEBUG
+                        $display("[CE] start cmd: op=%02h is_write=%0d len=%0d addr=%08h @%0t",
+                                 opcode_i, is_write_i, cmd_len_i, cmd_addr_i, $time);
+`endif
                         // latch configuration
                         cmd_lanes_r     <= cmd_lanes_i;
                         addr_lanes_r    <= addr_lanes_i;

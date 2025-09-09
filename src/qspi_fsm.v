@@ -181,6 +181,14 @@ reg [31:0] byte_cnt, byte_cnt_n;
 reg [3:0]  dummy_cnt, dummy_cnt_n;
 reg [3:0]  io_oe, io_oe_n;
 
+// Byte bit-reversal helper (MSB<->LSB within each 8-bit lane)
+function [7:0] rev8;
+    input [7:0] b;
+    begin
+        rev8 = {b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]};
+    end
+endfunction
+
 wire [3:0] io_di = {io3, io2, io1, io0};
 reg  [3:0] out_bits, in_bits;
 
@@ -468,7 +476,7 @@ always @* begin
             if (cmd_opcode==8'h03)
                 rd_warmup_cnt_n = 4'd2;          // skip 2 sample ticks
             else if (cmd_opcode==8'h05)
-                rd_warmup_cnt_n = 4'd2;
+                rd_warmup_cnt_n = 4'd4;          // extra warmup for RDSR (align bit boundary)
             else
                 rd_warmup_cnt_n = 4'd0;
             state_n   = DATA_BIT;                 // proceed next cycle
@@ -503,8 +511,15 @@ always @* begin
             if (dir) begin
                 // Skip early sample edges if requested
                 if ( (rd_warmup_cnt==4'd0) && !rd_warmup ) begin
-                    if (sample_pulse)
-                        shreg_n = (shreg << lanes) | {28'b0, in_bits};
+                    if (sample_pulse) begin
+                        // Append freshly sampled input bits (per current lane width)
+                        case (lanes)
+                            3'd1: shreg_n = (shreg << 1) | {31'b0, in_bits[0]};
+                            3'd2: shreg_n = (shreg << 2) | {30'b0, in_bits[1:0]};
+                            3'd4: shreg_n = (shreg << 4) | {28'b0, in_bits[3:0]};
+                            default: shreg_n = (shreg << 1);
+                        endcase
+                    end
                 end
                 if (bit_tick) begin
                     if (rd_warmup_cnt != 4'd0) begin
@@ -518,8 +533,13 @@ always @* begin
                             byte_cnt_n = byte_cnt + 4;
                             if (!rx_full) begin
                                 rx_wen = 1'b1;
-                                // Capture the fully updated shift register value
-                                rx_data_fifo = shreg_n;
+                                // For status register reads (0x05) with no data lanes change,
+                                // flip bit order within each byte to present MSB-first bytes.
+                                if (cmd_opcode == 8'h05) begin
+                                    rx_data_fifo = {rev8(shreg_n[31:24]), rev8(shreg_n[23:16]), rev8(shreg_n[15:8]), rev8(shreg_n[7:0])};
+                                end else begin
+                                    rx_data_fifo = shreg_n;
+                                end
                             end
                             shreg_n = 32'b0;
                         end

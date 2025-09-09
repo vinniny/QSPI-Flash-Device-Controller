@@ -79,6 +79,8 @@ module qspi_device_tb;
         if (rx[1] !== 1'b1) $fatal(1, "WEL bit not set after WREN");
 
         // --- Page Program byte 0xAA at address 0 ---
+        // Guard CS# high time between WREN/RDSR and PROGRAM to satisfy model timing (tSHSL)
+        #500;
         #10 qspi_cs_n = 0; master_oe = 1;
         for (i = 7; i >= 0; i = i - 1) begin
             master_do = (8'h02 >> i) & 1'b1;
@@ -104,6 +106,8 @@ module qspi_device_tb;
         end
 
         // --- Read back programmed byte ---
+        // Ensure CS# high guard time between WREN and ERASE as well
+        #500;
         #10 qspi_cs_n = 0; master_oe = 1;
         for (i = 7; i >= 0; i = i - 1) begin
             master_do = (8'h03 >> i) & 1'b1;

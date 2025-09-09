@@ -1,7 +1,0 @@
-VCD info: dumpfile top_cmd_tb.vcd opened for output.
-VCD warning: tb/top_cmd_tb.v:200: $dumpfile called after $dumpvars started,
-                                  using existing file (top_cmd_tb.vcd).
-VCD warning: ignoring signals in previously scanned scope top_cmd_tb.
-JEDEC ID word: c22017c2
-FATAL: tb/top_cmd_tb.v:278: Readback after program mismatch: 00000000
-       Time: 3923070000 Scope: top_cmd_tb

@@ -1,5 +1,5 @@
 $date
-	Tue Sep  9 13:57:22 2025
+	Wed Sep 10 00:06:53 2025
 $end
 $version
 	Icarus Verilog
@@ -53,200 +53,214 @@ $var reg 32 C bit_cnt [31:0] $end
 $var reg 32 D byte_cnt [31:0] $end
 $var reg 8 E cmd_reg [7:0] $end
 $var reg 1 F continuous_read $end
-$var reg 5 G dummy_cycles [4:0] $end
-$var reg 32 H erase_counter [31:0] $end
-$var reg 2 I id_idx [1:0] $end
-$var reg 24 J id_reg [23:0] $end
-$var reg 4 K io_do [3:0] $end
-$var reg 4 L io_oe [3:0] $end
-$var reg 4 M lanes [3:0] $end
-$var reg 8 N mode_bits [7:0] $end
-$var reg 32 O nxt_addr_reg [31:0] $end
-$var reg 32 P nxt_bit_cnt [31:0] $end
-$var reg 8 Q nxt_cmd_reg [7:0] $end
-$var reg 8 R shift_in [7:0] $end
-$var reg 8 S shift_out [7:0] $end
-$var reg 4 T state [3:0] $end
-$var reg 8 U status_reg [7:0] $end
-$var reg 1 V wip $end
-$scope begin $unm_blk_209 $end
-$var integer 32 W i [31:0] $end
-$upscope $end
-$scope begin $unm_blk_231 $end
-$var integer 32 X j [31:0] $end
+$var reg 64 G cs_high_accum_t [63:0] $end
+$var reg 64 H cs_high_last_t [63:0] $end
+$var reg 64 I cs_high_start_t [63:0] $end
+$var reg 5 J dummy_cycles [4:0] $end
+$var reg 32 K erase_counter [31:0] $end
+$var reg 2 L id_idx [1:0] $end
+$var reg 24 M id_reg [23:0] $end
+$var reg 4 N io_do [3:0] $end
+$var reg 4 O io_oe [3:0] $end
+$var reg 4 P lanes [3:0] $end
+$var reg 1 Q last_cmd_wren $end
+$var reg 8 R mode_bits [7:0] $end
+$var reg 32 S nxt_addr_reg [31:0] $end
+$var reg 32 T nxt_bit_cnt [31:0] $end
+$var reg 8 U nxt_cmd_reg [7:0] $end
+$var reg 8 V shift_in [7:0] $end
+$var reg 8 W shift_out [7:0] $end
+$var reg 4 X state [3:0] $end
+$var reg 8 Y status_reg [7:0] $end
+$var reg 1 Z wip $end
+$scope begin $unm_blk_214 $end
+$var integer 32 [ i [31:0] $end
 $upscope $end
 $scope begin $unm_blk_240 $end
-$var integer 32 Y j [31:0] $end
+$var integer 32 \ j [31:0] $end
+$upscope $end
+$scope begin $unm_blk_251 $end
+$var integer 32 ] j [31:0] $end
 $upscope $end
 $upscope $end
 $scope module dut $end
-$var wire 32 Z addr [31:0] $end
-$var wire 2 [ addr_bytes_sel [1:0] $end
-$var wire 2 \ addr_lanes_sel [1:0] $end
-$var wire 1 ] bit_tick $end
+$var wire 32 ^ addr [31:0] $end
+$var wire 2 _ addr_bytes_sel [1:0] $end
+$var wire 2 ` addr_lanes_sel [1:0] $end
+$var wire 1 a bit_tick $end
 $var wire 1 . clk $end
-$var wire 32 ^ clk_div [31:0] $end
-$var wire 2 _ cmd_lanes_sel [1:0] $end
-$var wire 8 ` cmd_opcode [7:0] $end
+$var wire 32 b clk_div [31:0] $end
+$var wire 2 c cmd_lanes_sel [1:0] $end
+$var wire 8 d cmd_opcode [7:0] $end
 $var wire 1 2 cpha $end
 $var wire 1 3 cpol $end
-$var wire 1 a cs_auto $end
-$var wire 2 b cs_delay [1:0] $end
-$var wire 2 c data_lanes_sel [1:0] $end
+$var wire 1 e cs_auto $end
+$var wire 2 f cs_delay [1:0] $end
+$var wire 2 g data_lanes_sel [1:0] $end
 $var wire 1 5 dir $end
 $var wire 1 ) done $end
-$var wire 4 d dummy_cycles [3:0] $end
+$var wire 4 h dummy_cycles [3:0] $end
 $var wire 1 ! io0 $end
 $var wire 1 " io1 $end
 $var wire 1 # io2 $end
 $var wire 1 $ io3 $end
-$var wire 1 e leading_edge $end
-$var wire 32 f len_bytes [31:0] $end
-$var wire 8 g mode_bits [7:0] $end
+$var wire 1 i leading_edge $end
+$var wire 32 j len_bytes [31:0] $end
+$var wire 8 k mode_bits [7:0] $end
 $var wire 1 : mode_en $end
-$var wire 1 h quad_en $end
+$var wire 1 l quad_en $end
 $var wire 1 ; resetn $end
 $var wire 1 < rx_full $end
 $var wire 1 > start $end
-$var wire 1 i trailing_edge $end
-$var wire 32 j tx_data_fifo [31:0] $end
+$var wire 1 m trailing_edge $end
+$var wire 32 n tx_data_fifo [31:0] $end
 $var wire 1 @ tx_empty $end
 $var wire 1 % tx_ren $end
-$var wire 1 k xip_cont_read $end
-$var wire 1 l shift_pulse $end
+$var wire 1 o xip_cont_read $end
+$var wire 1 p shift_pulse $end
 $var wire 1 & sclk $end
-$var wire 1 m sample_pulse $end
-$var wire 4 n io_di [3:0] $end
-$var wire 6 o addr_bits [5:0] $end
-$var reg 3 p addr_lanes_eff [2:0] $end
-$var reg 6 q bit_cnt [5:0] $end
-$var reg 6 r bit_cnt_n [5:0] $end
-$var reg 32 s byte_cnt [31:0] $end
-$var reg 32 t byte_cnt_n [31:0] $end
-$var reg 3 u cmd_lanes_eff [2:0] $end
-$var reg 8 v cs_cnt [7:0] $end
-$var reg 8 w cs_cnt_n [7:0] $end
+$var wire 1 q sample_pulse $end
+$var wire 4 r io_di [3:0] $end
+$var wire 8 s cs_delay_cycles [7:0] $end
+$var wire 6 t addr_bits [5:0] $end
+$var reg 3 u addr_lanes_eff [2:0] $end
+$var reg 6 v bit_cnt [5:0] $end
+$var reg 6 w bit_cnt_n [5:0] $end
+$var reg 32 x byte_cnt [31:0] $end
+$var reg 32 y byte_cnt_n [31:0] $end
+$var reg 3 z cmd_lanes_eff [2:0] $end
+$var reg 8 { cs_cnt [7:0] $end
+$var reg 8 | cs_cnt_n [7:0] $end
 $var reg 1 * cs_n $end
-$var reg 1 x cs_n_n $end
-$var reg 3 y data_lanes_eff [2:0] $end
-$var reg 4 z dummy_cnt [3:0] $end
-$var reg 4 { dummy_cnt_n [3:0] $end
-$var reg 4 | in_bits [3:0] $end
-$var reg 4 } io_oe [3:0] $end
-$var reg 4 ~ io_oe_n [3:0] $end
-$var reg 1 !" is_write_cmd $end
-$var reg 1 "" is_write_cmd_n $end
-$var reg 3 #" lanes [2:0] $end
-$var reg 3 $" lanes_n [2:0] $end
-$var reg 4 %" out_bits [3:0] $end
-$var reg 1 &" post_hold_write $end
-$var reg 1 '" post_hold_write_n $end
-$var reg 1 (" rd_warmup $end
-$var reg 4 )" rd_warmup_cnt [3:0] $end
-$var reg 4 *" rd_warmup_cnt_n [3:0] $end
-$var reg 1 +" rd_warmup_n $end
-$var reg 32 ," rx_data_fifo [31:0] $end
+$var reg 1 } cs_n_n $end
+$var reg 3 ~ data_lanes_eff [2:0] $end
+$var reg 4 !" dummy_cnt [3:0] $end
+$var reg 4 "" dummy_cnt_n [3:0] $end
+$var reg 4 #" in_bits [3:0] $end
+$var reg 4 $" io_oe [3:0] $end
+$var reg 4 %" io_oe_n [3:0] $end
+$var reg 1 &" is_write_cmd $end
+$var reg 1 '" is_write_cmd_n $end
+$var reg 3 (" lanes [2:0] $end
+$var reg 3 )" lanes_n [2:0] $end
+$var reg 4 *" out_bits [3:0] $end
+$var reg 1 +" post_hold_write $end
+$var reg 1 ," post_hold_write_n $end
+$var reg 1 -" rd_warmup $end
+$var reg 4 ." rd_warmup_cnt [3:0] $end
+$var reg 4 /" rd_warmup_cnt_n [3:0] $end
+$var reg 1 0" rd_warmup_n $end
+$var reg 32 1" rx_data_fifo [31:0] $end
 $var reg 1 ' rx_wen $end
-$var reg 1 -" sclk_armed $end
-$var reg 32 ." sclk_cnt [31:0] $end
-$var reg 1 /" sclk_edge $end
-$var reg 1 0" sclk_en $end
-$var reg 1 1" sclk_en_n $end
-$var reg 1 2" sclk_q $end
-$var reg 1 3" sclk_q_prev $end
-$var reg 32 4" shreg [31:0] $end
-$var reg 32 5" shreg_n [31:0] $end
-$var reg 4 6" state [3:0] $end
-$var reg 4 7" state_n [3:0] $end
+$var reg 1 2" sclk_armed $end
+$var reg 32 3" sclk_cnt [31:0] $end
+$var reg 1 4" sclk_edge $end
+$var reg 1 5" sclk_en $end
+$var reg 1 6" sclk_en_n $end
+$var reg 1 7" sclk_q $end
+$var reg 1 8" sclk_q_prev $end
+$var reg 32 9" shreg [31:0] $end
+$var reg 32 :" shreg_n [31:0] $end
+$var reg 4 ;" state [3:0] $end
+$var reg 4 <" state_n [3:0] $end
 $scope function lane_decode $end
-$var reg 2 8" sel [1:0] $end
+$var reg 2 =" sel [1:0] $end
 $upscope $end
 $scope function lane_mask $end
-$var reg 3 9" lanes [2:0] $end
+$var reg 3 >" lanes [2:0] $end
+$upscope $end
+$scope function rev8 $end
+$var reg 8 ?" b [7:0] $end
 $upscope $end
 $upscope $end
 $upscope $end
 $enddefinitions $end
 #0
 $dumpvars
-bx 9"
-bx 8"
-b0 7"
-b0 6"
-b0 5"
-b0 4"
-03"
+bx ?"
+bx >"
+bx ="
+b0 <"
+b0 ;"
+b0 :"
+b0 9"
+08"
+07"
+06"
+05"
+04"
+b0 3"
 02"
-01"
+b0 1"
 00"
-0/"
+b0 /"
 b0 ."
 0-"
-b0 ,"
+0,"
 0+"
 b0 *"
-b0 )"
-0("
+b1 )"
+b1 ("
 0'"
 0&"
 b0 %"
-b1 $"
-b1 #"
-0""
-0!"
-b0 ~
-b0 }
-b0z |
+b0 $"
+b0z #"
+b0 ""
+b0 !"
+b100 ~
+1}
+b0 |
 b0 {
-b0 z
-b100 y
-1x
+b1 z
+b0 y
+b0 x
 b0 w
 b0 v
-b1 u
-b0 t
+b100 u
+b11000 t
 b0 s
-b0 r
-b0 q
-b100 p
-b11000 o
-bz n
+bz r
+0q
+0p
+0o
+b0 n
 0m
-0l
-0k
-b0 j
+1l
+b10100000 k
+b100 j
 0i
-1h
-b10100000 g
-b100 f
-0e
-b100 d
+b100 h
+b0 g
+b0 f
+1e
+b11101011 d
 b0 c
 b0 b
-1a
-b11101011 `
-b0 _
+0a
+b0 `
+b1 _
 b0 ^
-0]
-b0 \
-b1 [
-b0 Z
-bx Y
-bx X
-b100000000000000000000 W
-0V
-b0 U
-b0 T
-b0 S
+bx ]
+bx \
+b100000000000000000000 [
+0Z
+b0 Y
+b0 X
+b0 W
+b0 V
+b0z U
+b1 T
+b0zzzz S
 b0 R
-b0z Q
-b1 P
-b0zzzz O
-b0 N
-b0 M
+0Q
+b0 P
+b0 O
+bx N
+b110000100010000000010111 M
 b0 L
-bx K
-b110000100010000000010111 J
+b0 K
+b0 J
 b0 I
 b0 H
 b0 G
@@ -309,1308 +323,1308 @@ b0 =
 #40000
 0.
 #45000
-b11101011000000000000000000000000 5"
-b1 7"
+b11101011000000000000000000000000 :"
+b1 <"
 1>
 1.
 #50000
 0.
 #55000
-b1 %"
-b10 7"
-0x
-b11101011000000000000000000000000 4"
-b1 6"
+b1 *"
+b10 <"
+0}
+b11101011000000000000000000000000 9"
+b1 ;"
 0>
 1.
 #60000
 0.
 #65000
-b1 ~
-b1 9"
-11"
+b1 %"
+b1 >"
+16"
 0*
-b10 6"
+b10 ;"
 1.
 #70000
 0.
 #75000
-b0zzz1 O
-b1 Q
+b0zzz1 S
+b1 U
 bz1 A
-bz1 n
+bz1 r
 1!
-10"
-b1 }
+15"
+b1 $"
 1.
 #80000
 0.
 #85000
-1-"
+12"
 1.
 #90000
 0.
 #95000
-b11 O
-b10 P
-b11 Q
-b1 R
-b1 M
+b11 S
+b10 T
+b11 U
+b1 V
+b1 P
 b1 C
-b1 T
-b1 r
-b11010110000000000000000000000000 5"
-11"
-b1 ~
-1]
-1m
-1e
+b1 X
+b1 w
+b11010110000000000000000000000000 :"
+16"
+b1 %"
+1a
+1q
+1i
 1&
-1/"
-12"
+14"
+17"
 1.
 #100000
 0.
 #105000
-1l
-0]
-0m
-1i
-0e
-b1 r
-b11010110000000000000000000000000 5"
-11"
-b1 ~
+1p
+0a
+0q
+1m
+0i
+b1 w
+b11010110000000000000000000000000 :"
+16"
+b1 %"
 0&
-b1 q
-b11010110000000000000000000000000 4"
-02"
-13"
-1/"
+b1 v
+b11010110000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #110000
 0.
 #115000
-b111 O
-b11 P
-b111 Q
+b111 S
+b11 T
+b111 U
 b10 C
-b11 R
-b10 r
-b10101100000000000000000000000000 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b11 V
+b10 w
+b10101100000000000000000000000000 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #120000
 0.
 #125000
-1l
-0]
-0m
-1i
-0e
-b10 r
-b10101100000000000000000000000000 5"
-11"
-b1 ~
+1p
+0a
+0q
+1m
+0i
+b10 w
+b10101100000000000000000000000000 :"
+16"
+b1 %"
 0&
-b10 q
-b10101100000000000000000000000000 4"
-02"
-13"
-1/"
+b10 v
+b10101100000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #130000
 0.
 #135000
-b1111 O
-b100 P
-b1111 Q
+b1111 S
+b100 T
+b1111 U
 b11 C
-b111 R
-b11 r
-b1011000000000000000000000000000 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b111 V
+b11 w
+b1011000000000000000000000000000 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #140000
 0.
 #145000
-b1110 O
-b1110 Q
+b1110 S
+b1110 U
 bz0 A
-bz0 n
+bz0 r
 0!
-1l
-0]
-0m
-1i
-0e
-b11 r
-b1011000000000000000000000000000 5"
-11"
-b1 ~
-b0 %"
+1p
+0a
+0q
+1m
+0i
+b11 w
+b1011000000000000000000000000000 :"
+16"
+b1 %"
+b0 *"
 0&
-b11 q
-b1011000000000000000000000000000 4"
-02"
-13"
-1/"
+b11 v
+b1011000000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #150000
 0.
 #155000
-b11100 O
-b101 P
-b11100 Q
+b11100 S
+b101 T
+b11100 U
 b100 C
-b1110 R
-b100 r
-b10110000000000000000000000000000 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b1110 V
+b100 w
+b10110000000000000000000000000000 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #160000
 0.
 #165000
-b11101 O
-b11101 Q
+b11101 S
+b11101 U
 bz1 A
-bz1 n
+bz1 r
 1!
-1l
-0]
-0m
-1i
-0e
-b100 r
-b10110000000000000000000000000000 5"
-11"
-b1 ~
+1p
+0a
+0q
+1m
+0i
+b100 w
+b10110000000000000000000000000000 :"
+16"
 b1 %"
+b1 *"
 0&
-b100 q
-b10110000000000000000000000000000 4"
-02"
-13"
-1/"
+b100 v
+b10110000000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #170000
 0.
 #175000
-b111011 O
-b110 P
-b111011 Q
+b111011 S
+b110 T
+b111011 U
 b101 C
-b11101 R
-b101 r
-b1100000000000000000000000000000 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b11101 V
+b101 w
+b1100000000000000000000000000000 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #180000
 0.
 #185000
-b111010 O
-b111010 Q
+b111010 S
+b111010 U
 bz0 A
-bz0 n
+bz0 r
 0!
-1l
-0]
-0m
-1i
-0e
-b101 r
-b1100000000000000000000000000000 5"
-11"
-b1 ~
-b0 %"
+1p
+0a
+0q
+1m
+0i
+b101 w
+b1100000000000000000000000000000 :"
+16"
+b1 %"
+b0 *"
 0&
-b101 q
-b1100000000000000000000000000000 4"
-02"
-13"
-1/"
+b101 v
+b1100000000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #190000
 0.
 #195000
-b1110100 O
-b111 P
-b1110100 Q
+b1110100 S
+b111 T
+b1110100 U
 b110 C
-b111010 R
-b110 r
-b11000000000000000000000000000000 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b111010 V
+b110 w
+b11000000000000000000000000000000 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #200000
 0.
 #205000
-b1110101 O
-b1110101 Q
+b1110101 S
+b1110101 U
 bz1 A
-bz1 n
+bz1 r
 1!
-1l
-0]
-0m
-1i
-0e
-b110 r
-b11000000000000000000000000000000 5"
-11"
-b1 ~
+1p
+0a
+0q
+1m
+0i
+b110 w
+b11000000000000000000000000000000 :"
+16"
 b1 %"
+b1 *"
 0&
-b110 q
-b11000000000000000000000000000000 4"
-02"
-13"
-1/"
+b110 v
+b11000000000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #210000
 0.
 #215000
-b11101011 O
-b1000 P
-b11101011 Q
+b11101011 S
+b1000 T
+b11101011 U
 b111 C
-b1110101 R
-b111 r
-b10000000000000000000000000000000 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b1110101 V
+b111 w
+b10000000000000000000000000000000 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #220000
 0.
 #225000
-1l
-0]
-0m
-1i
-0e
-b1 $"
-b10 7"
-b111 r
-b10000000000000000000000000000000 5"
-11"
-b1 ~
+1p
+0a
+0q
+1m
+0i
+b1 )"
+b10 <"
+b111 w
+b10000000000000000000000000000000 :"
+16"
+b1 %"
 0&
-b111 q
-b10000000000000000000000000000000 4"
-02"
-13"
-1/"
+b111 v
+b10000000000000000000000000000000 9"
+07"
+18"
+14"
 1.
 #230000
 0.
 #235000
-b0zzz1 O
-b1 P
-b1 Q
-b100 G
-b100 M
-b10 T
+b0zzz1 S
+b1 T
+b1 U
+b100 J
+b100 P
+b10 X
 b11101011 E
 b0 C
-b0 R
-b100 $"
-b11 7"
-b0 r
-b0 5"
-11"
-b1 ~
-0l
-1]
-1m
-0i
-1e
+b0 V
+b100 )"
+b11 <"
+b0 w
+b0 :"
+16"
+b1 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #240000
 0.
 #245000
-b0zzz0 O
-b0 Q
+b0zzz0 S
+b0 U
 bz0 A
-bz0 n
+bz0 r
 0!
-1l
-0]
-0m
-1i
-0e
-bz0 |
-b0 %"
-b0 r
-b100 9"
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+bz0 #"
+b0 *"
+b0 w
+b100 >"
+16"
+b1111 %"
 0&
-b0 q
-b0 4"
-b100 #"
-b11 6"
-02"
-13"
-1/"
+b0 v
+b0 9"
+b100 ("
+b11 ;"
+07"
+18"
+14"
 1.
 #250000
 0.
 #255000
-b101 P
+b101 T
 b100 C
-b100 r
-11"
-b1111 ~
-0l
-1]
-1m
-b0 O
-b0 |
-0i
-1e
+b100 w
+16"
+b1111 %"
+0p
+1a
+1q
+b0 S
+b0 #"
+0m
+1i
 0"
 0#
 b0 A
-b0 n
+b0 r
 0$
 1&
-12"
-03"
-1/"
-b1111 }
+17"
+08"
+14"
+b1111 $"
 1.
 #260000
 0.
 #265000
-1l
-0]
-0m
-1i
-0e
-b100 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b100 w
+16"
+b1111 %"
 0&
-b100 q
-02"
-13"
-1/"
+b100 v
+07"
+18"
+14"
 1.
 #270000
 0.
 #275000
-b1 P
+b1 T
 b1 D
 b0 C
-b1000 r
-11"
-b1111 ~
-0l
-1]
-1m
-0i
-1e
+b1000 w
+16"
+b1111 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #280000
 0.
 #285000
-1l
-0]
-0m
-1i
-0e
-b1000 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b1000 w
+16"
+b1111 %"
 0&
-b1000 q
-02"
-13"
-1/"
+b1000 v
+07"
+18"
+14"
 1.
 #290000
 0.
 #295000
-b101 P
+b101 T
 b100 C
-b1100 r
-11"
-b1111 ~
-0l
-1]
-1m
-0i
-1e
+b1100 w
+16"
+b1111 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #300000
 0.
 #305000
-1l
-0]
-0m
-1i
-0e
-b1100 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b1100 w
+16"
+b1111 %"
 0&
-b1100 q
-02"
-13"
-1/"
+b1100 v
+07"
+18"
+14"
 1.
 #310000
 0.
 #315000
-b1 P
+b1 T
 b10 D
 b0 C
-b10000 r
-11"
-b1111 ~
-0l
-1]
-1m
-0i
-1e
+b10000 w
+16"
+b1111 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #320000
 0.
 #325000
-1l
-0]
-0m
-1i
-0e
-b10000 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b10000 w
+16"
+b1111 %"
 0&
-b10000 q
-02"
-13"
-1/"
+b10000 v
+07"
+18"
+14"
 1.
 #330000
 0.
 #335000
-b101 P
+b101 T
 b100 C
-b10100 r
-11"
-b1111 ~
-0l
-1]
-1m
-0i
-1e
+b10100 w
+16"
+b1111 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #340000
 0.
 #345000
-1l
-0]
-0m
-1i
-0e
-b0 5"
-b11 7"
-b10100 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b0 :"
+b11 <"
+b10100 w
+16"
+b1111 %"
 0&
-b10100 q
-02"
-13"
-1/"
+b10100 v
+07"
+18"
+14"
 1.
 #350000
 0.
 #355000
-b1 P
-b11 T
+b1 T
+b11 X
 b11 D
 b0 C
-b10100000000000000000000000000000 5"
-b100 7"
-b0 r
-11"
-b1111 ~
-0l
-1]
-1m
-0i
-1e
+b10100000000000000000000000000000 :"
+b100 <"
+b0 w
+16"
+b1111 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #360000
 0.
 #365000
-b1010 O
-b1010 |
-b0 5"
+b1010 S
+b1010 #"
+b0 :"
 1"
 b1010 A
-b1010 n
+b1010 r
 1$
-1l
-0]
-0m
-1i
-0e
-b1010 %"
-b0 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b1010 *"
+b0 w
+16"
+b1111 %"
 0&
-b0 q
-b10100000000000000000000000000000 4"
-b100 6"
-02"
-13"
-1/"
+b0 v
+b10100000000000000000000000000000 9"
+b100 ;"
+07"
+18"
+14"
 1.
 #370000
 0.
 #375000
-b101 P
-b10100 Q
+b101 T
+b10100 U
 b100 C
-b1010 R
-b100 r
-b10100000 O
-b0 |
-0l
-1]
-1m
+b1010 V
+b100 w
+b10100000 S
+b0 #"
+0p
+1a
+1q
 0"
 b0 A
-b0 n
+b0 r
 0$
-0i
-1e
+0m
+1i
 1&
-11"
-b1111 ~
-b0 %"
-12"
-03"
-1/"
-b0 4"
+16"
+b1111 %"
+b0 *"
+17"
+08"
+14"
+b0 9"
 1.
 #380000
 0.
 #385000
-1l
-0]
-0m
-1i
-0e
-b0 {
-b100 7"
-b100 r
-11"
-b1111 ~
+1p
+0a
+0q
+1m
+0i
+b0 ""
+b100 <"
+b100 w
+16"
+b1111 %"
 0&
-b100 q
-02"
-13"
-1/"
+b100 v
+07"
+18"
+14"
 1.
 #390000
 0.
 #395000
-b0 O
-b1 P
-b1000000 Q
-b100 T
-b1010 N
+b0 S
+b1 T
+b1000000 U
+b100 X
+b1010 R
 b0 C
-b10100000 R
-b100 {
-b101 7"
-b0 r
-11"
-b1111 ~
-0l
-1]
-1m
-0i
-1e
+b10100000 V
+b100 ""
+b101 <"
+b0 w
+16"
+b1111 %"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #400000
 0.
 #405000
-1l
-0]
-0m
-1i
-0e
-b100 {
-11"
-b0 ~
+1p
+0a
+0q
+1m
+0i
+b100 ""
+16"
+b0 %"
 0&
-b100 z
-b0 q
-b101 6"
-02"
-13"
-1/"
+b100 !"
+b0 v
+b101 ;"
+07"
+18"
+14"
 1.
 #410000
 0.
 #415000
-b10 P
+b10 T
 b1 C
-b11 {
-11"
-0l
-1]
-1m
-b0zzzz O
-b100000z Q
-bz |
-0i
-1e
+b11 ""
+16"
+0p
+1a
+1q
+b0zzzz S
+b100000z U
+bz #"
+0m
+1i
 z!
 z"
 z#
 bz A
-bz n
+bz r
 z$
 1&
-12"
-03"
-1/"
-b0 }
+17"
+08"
+14"
+b0 $"
 1.
 #420000
 0.
 #425000
-1l
-0]
-0m
-1i
-0e
-b11 {
-11"
+1p
+0a
+0q
+1m
+0i
+b11 ""
+16"
 0&
-b11 z
-02"
-13"
-1/"
+b11 !"
+07"
+18"
+14"
 1.
 #430000
 0.
 #435000
-b11 P
+b11 T
 b10 C
-b10 {
-11"
-0l
-1]
-1m
-0i
-1e
+b10 ""
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #440000
 0.
 #445000
-1l
-0]
-0m
-1i
-0e
-b10 {
-11"
+1p
+0a
+0q
+1m
+0i
+b10 ""
+16"
 0&
-b10 z
-02"
-13"
-1/"
+b10 !"
+07"
+18"
+14"
 1.
 #450000
 0.
 #455000
-b100 P
+b100 T
 b11 C
-b1 {
-11"
-0l
-1]
-1m
-0i
-1e
+b1 ""
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #460000
 0.
 #465000
-1l
-0]
-0m
-1i
-0e
-0+"
-b101 7"
-b1 {
-11"
+1p
+0a
+0q
+1m
+0i
+00"
+b101 <"
+b1 ""
+16"
 0&
-b1 z
-02"
-13"
-1/"
+b1 !"
+07"
+18"
+14"
 1.
 #470000
 0.
 #475000
-b0xxxx O
-b100000x Q
-bx |
+b0xxxx S
+b100000x U
+bx #"
 x!
 x"
 x#
 bx A
-bx n
+bx r
 x$
-b1 P
-b11111111 S
-b1111 L
-b101 T
+b1 T
+b11111111 W
+b1111 O
+b101 X
 b0 C
-1+"
-b110 7"
-b0 {
-11"
-0l
-1]
-1m
-0i
-1e
+10"
+b110 <"
+b0 ""
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #480000
 0.
 #485000
-1l
-0]
-0m
-1i
-0e
-1+"
-11"
+1p
+0a
+0q
+1m
+0i
+10"
+16"
 0&
-1("
-b0 z
-b110 6"
-02"
-13"
-1/"
+1-"
+b0 !"
+b110 ;"
+07"
+18"
+14"
 1.
 #490000
 0.
 #495000
-b101 P
+b101 T
 b100 C
-b11110000 S
-b1111 O
-b1000001 Q
-b1111 |
+b11110000 W
+b1111 S
+b1000001 U
+b1111 #"
 1$
 1#
 1"
 b1111 A
-b1111 n
+b1111 r
 1!
-0+"
-11"
-0l
-1]
-1m
-b1111 K
-0i
-1e
+00"
+16"
+0p
+1a
+1q
+b1111 N
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #500000
 0.
 #505000
-1l
-0]
-0m
-1i
-0e
-b0 r
-b0 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b0 w
+b0 :"
+16"
 0&
-0("
-02"
-13"
-1/"
+0-"
+07"
+18"
+14"
 1.
 #510000
 0.
 #515000
-b100001111 O
-b1 P
+b100001111 S
+b1 T
 b100 D
 b1 B
 b0 C
-b11111111 S
-b100 r
-b1111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11111111 W
+b100 w
+b1111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #520000
 0.
 #525000
-1l
-0]
-0m
-1i
-0e
-b100 r
-b1111 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b100 w
+b1111 :"
+16"
 0&
-b100 q
-b1111 4"
-02"
-13"
-1/"
+b100 v
+b1111 9"
+07"
+18"
+14"
 1.
 #530000
 0.
 #535000
-b101 P
+b101 T
 b100 C
-b11110000 S
-b1000 r
-b11111111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11110000 W
+b1000 w
+b11111111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #540000
 0.
 #545000
-1l
-0]
-0m
-1i
-0e
-b1000 r
-b11111111 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b1000 w
+b11111111 :"
+16"
 0&
-b1000 q
-b11111111 4"
-02"
-13"
-1/"
+b1000 v
+b11111111 9"
+07"
+18"
+14"
 1.
 #550000
 0.
 #555000
-b1000001111 O
-b1 P
+b1000001111 S
+b1 T
 b101 D
 b10 B
 b0 C
-b11111111 S
-b1100 r
-b111111111111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11111111 W
+b1100 w
+b111111111111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #560000
 0.
 #565000
-1l
-0]
-0m
-1i
-0e
-b1100 r
-b111111111111 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b1100 w
+b111111111111 :"
+16"
 0&
-b1100 q
-b111111111111 4"
-02"
-13"
-1/"
+b1100 v
+b111111111111 9"
+07"
+18"
+14"
 1.
 #570000
 0.
 #575000
-b101 P
+b101 T
 b100 C
-b11110000 S
-b10000 r
-b1111111111111111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11110000 W
+b10000 w
+b1111111111111111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #580000
 0.
 #585000
-1l
-0]
-0m
-1i
-0e
-b10000 r
-b1111111111111111 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b10000 w
+b1111111111111111 :"
+16"
 0&
-b10000 q
-b1111111111111111 4"
-02"
-13"
-1/"
+b10000 v
+b1111111111111111 9"
+07"
+18"
+14"
 1.
 #590000
 0.
 #595000
-b1100001111 O
-b1 P
+b1100001111 S
+b1 T
 b110 D
 b11 B
 b0 C
-b11111111 S
-b10100 r
-b11111111111111111111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11111111 W
+b10100 w
+b11111111111111111111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #600000
 0.
 #605000
-1l
-0]
-0m
-1i
-0e
-b10100 r
-b11111111111111111111 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b10100 w
+b11111111111111111111 :"
+16"
 0&
-b10100 q
-b11111111111111111111 4"
-02"
-13"
-1/"
+b10100 v
+b11111111111111111111 9"
+07"
+18"
+14"
 1.
 #610000
 0.
 #615000
-b101 P
+b101 T
 b100 C
-b11110000 S
-b11000 r
-b111111111111111111111111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11110000 W
+b11000 w
+b111111111111111111111111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #620000
 0.
 #625000
-1l
-0]
-0m
-1i
-0e
-b11000 r
-b111111111111111111111111 5"
-11"
+1p
+0a
+0q
+1m
+0i
+b11000 w
+b111111111111111111111111 :"
+16"
 0&
-b11000 q
-b111111111111111111111111 4"
-02"
-13"
-1/"
+b11000 v
+b111111111111111111111111 9"
+07"
+18"
+14"
 1.
 #630000
 0.
 #635000
-b10000001111 O
-b1 P
+b10000001111 S
+b1 T
 b111 D
 b100 B
 b0 C
-b11111111 S
-b11100 r
-b1111111111111111111111111111 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b11111111 W
+b11100 w
+b1111111111111111111111111111 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #640000
 0.
 #645000
-1l
-0]
-0m
-1i
-0e
-b110 7"
+1p
+0a
+0q
+1m
+0i
+b110 <"
 b0 (
-b0 ,"
+b0 1"
 0'
-b0 t
-b11100 r
-b1111111111111111111111111111 5"
-11"
+b0 y
+b11100 w
+b1111111111111111111111111111 :"
+16"
 0&
-b11100 q
-b1111111111111111111111111111 4"
-02"
-13"
-1/"
+b11100 v
+b1111111111111111111111111111 9"
+07"
+18"
+14"
 1.
 #650000
 0.
 #655000
-b101 P
+b101 T
 b100 C
-b11110000 S
-b1000 7"
+b11110000 W
+b1000 <"
 b11111111111111111111111111111111 (
-b11111111111111111111111111111111 ,"
+b11111111111111111111111111111111 1"
 1'
-b100 t
-b0 r
-b0 5"
-11"
-0l
-1]
-1m
-0i
-1e
+b100 y
+b0 w
+b0 :"
+16"
+0p
+1a
+1q
+0m
+1i
 1&
-12"
-03"
-1/"
+17"
+08"
+14"
 1.
 #660000
 0.
 #665000
-1l
-0]
-0m
+1p
+0a
+0q
 1)
-1i
-0e
-b0 7"
-1x
+1m
+0i
+b0 <"
+1}
 b0 (
-b0 ,"
+b0 1"
 0'
-01"
+06"
 0&
-b100 s
-b0 q
-b0 4"
-b1000 6"
-02"
-13"
-1/"
+b100 x
+b0 v
+b0 9"
+b1000 ;"
+07"
+18"
+14"
 b11111111111111111111111111111111 =
 17
 1.
 #670000
 0.
 #675000
-b1000000zzzz O
-bz |
+b1000000zzzz S
+bz #"
 z!
 z"
 z#
 bz A
-bz n
+bz r
 z$
-b0z Q
-b0 R
-b0 L
-b0 T
-0l
-1]
-1m
-0i
-1e
+b0z U
+b0 V
+b0 O
+b0 X
+0p
+1a
+1q
+0m
+1i
 0)
-12"
-03"
-1/"
-00"
+17"
+08"
+14"
+05"
 1*
-b0 6"
+b0 ;"
 1.
 #680000
 0.
 #685000
-0]
-0m
-0e
-0-"
+0a
+0q
+0i
 02"
-0/"
+07"
+04"
 1.
 #690000
 0.

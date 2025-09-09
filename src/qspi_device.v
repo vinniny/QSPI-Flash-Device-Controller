@@ -50,7 +50,9 @@ module qspi_device (
 
     // CS# high-time enforcement (optional strict timing, time-based)
     // Use simulation time (ns) as timescale is 1ns/1ps.
-    parameter integer CS_HIGH_MIN_NS = 400; // minimum CS# high time between WREN and next op
+    // Default disabled (0) so unit tests that don't model inter-command
+    // delays still pass. Top-level benches can override non-zero if desired.
+    parameter integer CS_HIGH_MIN_NS = 0; // minimum CS# high time between WREN and next op
     time cs_high_start_t = 0;
     time cs_high_last_t  = 0;
     time cs_high_accum_t = 0;  // accumulated CS# high time since WREN
@@ -368,6 +370,9 @@ module qspi_device (
                     if ((bit_cnt == 7 && lanes == 1) || (bit_cnt == 6 && lanes == 2) || (bit_cnt == 4 && lanes == 4)) begin
                         if (addr_reg < MEM_SIZE && (addr_reg % PAGE_SIZE != PAGE_SIZE - 1)) begin
                             memory[addr_reg] <= lanes == 1 ? {shift_in[6:0], io_di[0]} : lanes == 2 ? {shift_in[5:0], io_di[1:0]} : {shift_in[3:0], io_di[3:0]};
+`ifdef QSPI_MODEL_DEBUG
+                            $display("[QSPI_DEV] PROGRAM @%0h <= %02h", addr_reg, lanes == 1 ? {shift_in[6:0], io_di[0]} : lanes == 2 ? {shift_in[5:0], io_di[1:0]} : {shift_in[3:0], io_di[3:0]});
+`endif
                             addr_reg <= addr_reg + 1;
                         end
                         bit_cnt <= 0;

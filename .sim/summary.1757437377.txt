@@ -1,0 +1,4 @@
+qspi_fsm_quad_eb_tb: PASS
+dma_engine_tb: PASS
+top_cmd_tb: FAIL
+top_tb: PASS
