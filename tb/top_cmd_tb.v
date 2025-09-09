@@ -153,6 +153,30 @@ module top_cmd_tb;
   task ctrl_dma_enable(); begin apb_write(CTRL, 32'h0000_0041); end endtask
   task set_cs_auto(); begin apb_write(CS_CTRL, 32'h0000_0001); end endtask
 
+  // Wait for command engine busy to assert then clear
+  task wait_cmd_done();
+    reg [31:0] stat;
+    integer t;
+  begin
+    // wait for busy=1
+    begin : wait_busy
+      for (t = 0; t < 1000; t = t + 1) begin
+        apb_read(STATUS, stat);
+        if (stat[3]) disable wait_busy;
+        @(posedge clk);
+      end
+    end
+    // wait for busy=0
+    begin : wait_done
+      for (t = 0; t < 1000; t = t + 1) begin
+        apb_read(STATUS, stat);
+        if (!stat[3]) disable wait_done;
+        @(posedge clk);
+      end
+    end
+  end
+  endtask
+
   task cfg_cmd(
     input [1:0] lanes_cmd, input [1:0] lanes_addr, input [1:0] lanes_data,
     input [1:0] addr_bytes, input [3:0] dummies, input is_write,
@@ -191,6 +215,64 @@ module top_cmd_tb;
     @(posedge clk);
     @(posedge clk); d = prdata;
     psel <= 0; penable <= 0; paddr <= 0;
+  end
+  endtask
+
+  // Drain all available words from RX FIFO
+  task drain_rx_fifo();
+    reg [31:0] fstat;
+    reg [31:0] dummy;
+    integer k;
+  begin : drain
+    for (k = 0; k < 32; k = k + 1) begin
+      apb_read(12'h04C, fstat);
+      if (fstat[7:4] == 4'd0) disable drain;
+      pop_rx(dummy);
+    end
+    // final check for residual data
+    apb_read(12'h04C, fstat);
+    if (fstat[7:4] != 4'd0) $fatal(1, "RX FIFO not empty after drain");
+  end
+  endtask
+
+  // Poll status register until WIP clears then ensure controller idle and FIFO empty
+  task wait_flash_ready();
+    reg [31:0] stat;
+    reg [31:0] fstat;
+    reg [31:0] sreg;
+    integer t;
+  begin
+    begin : wip_poll
+      for (t = 0; t < 200000; t = t + 1) begin
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd1);
+        ctrl_trigger();
+        begin : wait_rx
+          integer u;
+          for (u = 0; u < 80; u = u + 1) begin
+            apb_read(12'h04C, fstat); if (fstat[7:4] != 4'd0) disable wait_rx; @(posedge clk);
+          end
+        end
+        pop_rx(sreg);
+        if (!sreg[8]) disable wip_poll;
+        @(posedge clk);
+      end
+    end
+    if (sreg[8]) $fatal(1, "WIP never cleared");
+    // Wait for controller STATUS.busy to clear
+    begin : wait_idle
+      for (t = 0; t < 2000; t = t + 1) begin
+        apb_read(STATUS, stat); if (!stat[3]) disable wait_idle; @(posedge clk);
+      end
+    end
+    drain_rx_fifo();
+    // ensure FIFO truly empty
+    apb_read(12'h04C, fstat);
+    if (fstat[7:4] != 4'd0) $fatal(1, "Residual data in RX FIFO after ready");
+    // extend idle time for data stability (~3us)
+    #3000; // 3 µs idle
+    // recheck FIFO after idle
+    apb_read(12'h04C, fstat);
+    if (fstat[7:4] != 4'd0) $fatal(1, "RX FIFO not empty after idle");
   end
   endtask
 
@@ -241,6 +323,8 @@ module top_cmd_tb;
         if (fstat[7:4] == 4'd0) disable drain_after_id;
         pop_rx(dword);
       end
+      apb_read(12'h04C, fstat);
+      if (fstat[7:4] != 4'd0) $fatal(1, "RX FIFO not empty after JEDEC ID drain");
     end
 
     // 2) Fast Read (0x0B) len=4 from 0x000000 should be 0xFFFF_FFFF
@@ -260,12 +344,12 @@ module top_cmd_tb;
     // 3) WREN (0x06)
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
-    // Ensure CS# high idle after WREN before first RDSR
-    repeat (80) @(posedge clk);
-    // Add extra idle before first RDSR to let WEL latch in the model
-    repeat (50) @(posedge clk);
+    // Wait for WREN command to complete
+    wait_cmd_done();
+    repeat (400) @(posedge clk);
+    #500; // allow CS# high time after WREN before polling status
     // Debug: read status to see WEL after WREN
-    cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+    cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd1);
     ctrl_trigger();
     begin : wren_stat
       for (i = 0; i < 200; i = i + 1) begin
@@ -274,13 +358,13 @@ module top_cmd_tb;
     end
     pop_rx(dword);
     $display("[DBG] RDSR after WREN: %08h", dword);
-    // Ensure WEL is set before proceeding (status bit1 in any byte)
+    // Ensure WEL is set before proceeding (status bit1 appears at bit[9])
     begin : wait_wel
       integer t;
       reg wel;
       wel = 1'b0;
       for (t = 0; t < 400; t = t + 1) begin
-        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd1);
         ctrl_trigger();
         begin : wait_rx
           integer u;
@@ -289,18 +373,19 @@ module top_cmd_tb;
           end
         end
         pop_rx(dword);
-        if (dword[1] | dword[9] | dword[17] | dword[25]) begin wel = 1'b1; disable wait_wel; end
+        if (dword[9]) begin wel = 1'b1; disable wait_wel; end
       end
       if (!wel) begin
         // Retry WREN once with extended CS high idle, then re-check WEL; proceed regardless
         repeat (100) @(posedge clk);
         cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
         ctrl_trigger();
-        repeat (50) @(posedge clk);
+        wait_cmd_done();
+        repeat (400) @(posedge clk);
         begin : retry_wel
           integer t2;
           for (t2 = 0; t2 < 400; t2 = t2 + 1) begin
-            cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd1);
             ctrl_trigger();
             begin : wait_rx2
               integer u2;
@@ -308,11 +393,11 @@ module top_cmd_tb;
                 apb_read(12'h04C, dword); if (dword[7:4] != 4'd0) disable wait_rx2; @(posedge clk);
               end
             end
-            pop_rx(dword);
-            if (dword[1] | dword[9] | dword[17] | dword[25]) disable retry_wel;
+        pop_rx(dword);
+        if (dword[9]) disable retry_wel;
           end
         end
-        if (!(dword[1] | dword[9] | dword[17] | dword[25]))
+        if (!dword[9])
           $display("[WARN] WEL not set after WREN retry; proceeding to PP and relying on WIP/readback");
       end
     end
@@ -321,17 +406,17 @@ module top_cmd_tb;
     // Re-assert CS delay prior to program to be explicit
     apb_write(CS_CTRL, 32'h0000_0019);
     apb_write(FIFO_TX, 32'hA5A5_A5A5);
-    // WREN with explicit WEL verification and CS# idle before PROGRAM
+    // WREN with explicit WEL verification
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
-    // Ensure CS# high idle after WREN before first RDSR
-    repeat (80) @(posedge clk);
+    wait_cmd_done();
+    repeat (400) @(posedge clk);
     begin : ensure_wel_prog
       integer t;
       reg wel_ok;
       wel_ok = 1'b0;
       for (t = 0; t < 400; t = t + 1) begin
-        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd1);
         ctrl_trigger();
         begin : wait_rx_wel_p
           integer u;
@@ -340,15 +425,23 @@ module top_cmd_tb;
           end
         end
         pop_rx(dword);
-        if (dword[1] | dword[9] | dword[17] | dword[25]) begin wel_ok = 1'b1; disable ensure_wel_prog; end
-        if (t==200) begin cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0); ctrl_trigger(); end
+        if (dword[9]) begin
+          #500; // 500 ns guard between last RDSR and PROGRAM
+          wel_ok = 1'b1;
+          disable ensure_wel_prog;
+        end
+        if (t==200) begin
+          cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
+          ctrl_trigger();
+          wait_cmd_done();
+          repeat (400) @(posedge clk);
+        end
         @(posedge clk);
       end
       if (!wel_ok) $fatal(1, "WEL not set before PROGRAM");
     end
-    // CS# high idle; include real-time delay to satisfy model's $time-based check
+    // Additional idle before PROGRAM for robustness
     repeat (80) @(posedge clk);
-    #500; // 500 ns guard between last RDSR and PROGRAM
     // Configure program
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h02, 8'h00, 32'h0, 32'd4);
     ctrl_trigger();
@@ -369,34 +462,8 @@ module top_cmd_tb;
         @(posedge clk);
       end
     end
-    // Poll status until WIP=0 (read 4 bytes; check bit0 of top byte)
-    for (i=0;i<200000;i=i+1) begin
-      cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
-      ctrl_trigger();
-      repeat (50) @(posedge clk);
-      pop_rx(dword);
-      if ( (dword[0] | dword[8] | dword[16] | dword[24]) == 1'b0 ) i = 200000; // exit loop when WIP=0 in any byte
-    end
-    if ( (dword[0] | dword[8] | dword[16] | dword[24]) != 1'b0) $fatal(1, "WIP never cleared after program");
-
-    // Ensure controller not busy and RX FIFO drained before readback
-    begin : wait_idle_and_drain
-      reg [31:0] stat;
-      reg [31:0] fstat;
-      integer k;
-      // wait for STATUS.busy==0 (STATUS[3])
-      for (k=0;k<2000;k=k+1) begin
-        apb_read(STATUS, stat);
-        if (!stat[3]) disable wait_idle_and_drain;
-        @(posedge clk);
-      end
-      // drain any residual RX words
-      for (k=0;k<16;k=k+1) begin
-        apb_read(12'h04C, fstat);
-        if (fstat[7:4]==4'd0) disable wait_idle_and_drain;
-        pop_rx(dword);
-      end
-    end
+    // Wait for flash operation to finish and controller to idle
+    wait_flash_ready();
 
     // 5) Read back (robust): try 0x03 exact, else try 0x0B exact; else accept non-FFFF on 0x0B as tolerant pass
     rb_ok = 0;
@@ -435,16 +502,18 @@ module top_cmd_tb;
     if (!rb_ok) $fatal(1, "Readback after program mismatch: 03=%08h 0B=%08h", rd03, rd0b);
 
     // 6) Sector Erase (0x20) @ 0x000000
-    // WREN with explicit WEL verification and CS# idle before ERASE
+    // WREN with explicit WEL verification
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
+    wait_cmd_done();
+    repeat (400) @(posedge clk);
     // Verify WEL=1 via RDSR; retry WREN if needed
     begin : ensure_wel_erase
       integer t;
       reg wel_ok;
       wel_ok = 1'b0;
       for (t = 0; t < 400; t = t + 1) begin
-        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
+        cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd1);
         ctrl_trigger();
         begin : wait_rx_wel_e
           integer u;
@@ -453,9 +522,14 @@ module top_cmd_tb;
           end
         end
         pop_rx(dword);
-        if (dword[1] | dword[9] | dword[17] | dword[25]) begin wel_ok = 1'b1; disable ensure_wel_erase; end
+        if (dword[9]) begin wel_ok = 1'b1; disable ensure_wel_erase; end
         // If half-way and not set, issue WREN again
-        if (t==200) begin cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0); ctrl_trigger(); end
+        if (t==200) begin
+          cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
+          ctrl_trigger();
+          wait_cmd_done();
+          repeat (400) @(posedge clk);
+        end
         @(posedge clk);
       end
       if (!wel_ok) $fatal(1, "WEL not set before ERASE");
@@ -465,15 +539,7 @@ module top_cmd_tb;
     #500; // 500 ns guard between last RDSR and ERASE
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h20, 8'h00, 32'h0, 32'd0);
     ctrl_trigger();
-    // Poll WIP
-    for (i=0;i<2000000;i=i+1) begin
-      cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
-      ctrl_trigger();
-      repeat (100) @(posedge clk);
-      pop_rx(dword);
-      if ( (dword[0] | dword[8] | dword[16] | dword[24]) == 1'b0 ) i = 2000000;
-    end
-    if ( (dword[0] | dword[8] | dword[16] | dword[24]) != 1'b0 ) $fatal(1, "WIP never cleared after erase");
+    wait_flash_ready();
 
     // Verify erased (robust): try 0x03 exact, else try 0x0B exact at 0x000000
     repeat (50) @(posedge clk);
@@ -531,7 +597,10 @@ module top_cmd_tb;
     end
     if (!rb_ok) $fatal(1, "Readback after erase (end of sector) mismatch: 03=%08h 0B=%08h", rd03, rd0b);
 
-    // 7) DMA Read test: read 4B to mem[0]
+    // Ensure flash ready before DMA read
+    wait_flash_ready();
+
+    // 7) DMA Read test: read 4B to mem[0] @0x000000
     cfg_dma(4'd1, 1'b1, 1'b1, 32'h0000_0000, 32'd4);
     // Setup fast read
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd8, 1'b0, 8'h0B, 8'h00, 32'h0, 32'd4);
@@ -540,25 +609,81 @@ module top_cmd_tb;
     repeat (2000) @(posedge clk);
     if (mem.mem[0] !== 32'hFFFF_FFFF) $fatal(1, "DMA read mismatch: %h", mem.mem[0]);
 
+    // Ensure controller idle and RX FIFO empty before next DMA read
+    begin : post_dma0_drain
+      reg [31:0] stat;
+      reg [31:0] fstat;
+      integer k;
+      begin : wait_idle
+        for (k=0;k<2000;k=k+1) begin
+          apb_read(STATUS, stat);
+          if (!stat[3]) disable wait_idle;
+          @(posedge clk);
+        end
+      end
+      begin : drain_rx
+        for (k=0;k<32;k=k+1) begin
+          apb_read(12'h04C, fstat);
+          if (fstat[7:4]==4'd0) disable drain_rx;
+          pop_rx(dword);
+        end
+      end
+      // final FIFO empty check
+      apb_read(12'h04C, fstat);
+      if (fstat[7:4] != 4'd0) $fatal(1, "RX FIFO not empty after DMA read drain");
+    end
+    // Ensure flash ready before next DMA read
+    wait_flash_ready();
+
+    // 7b) DMA Read test near end of sector (0x07FC) to mem[4]
+    cfg_dma(4'd1, 1'b1, 1'b1, 32'h0000_0010, 32'd4);
+    cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd8, 1'b0, 8'h0B, 8'h00, 32'h0000_07FC, 32'd4);
+    ctrl_dma_enable();
+    ctrl_trigger();
+    repeat (2000) @(posedge clk);
+    if (mem.mem[4] !== 32'hFFFF_FFFF) $fatal(1, "DMA read (end) mismatch: %h", mem.mem[4]);
+
+    // Ensure controller idle and RX FIFO empty before DMA program
+    begin : post_dma1_drain
+      reg [31:0] stat;
+      reg [31:0] fstat;
+      integer k;
+      begin : wait_idle
+        for (k=0;k<2000;k=k+1) begin
+          apb_read(STATUS, stat);
+          if (!stat[3]) disable wait_idle;
+          @(posedge clk);
+        end
+      end
+      begin : drain_rx
+        for (k=0;k<32;k=k+1) begin
+          apb_read(12'h04C, fstat);
+          if (fstat[7:4]==4'd0) disable drain_rx;
+          pop_rx(dword);
+        end
+      end
+      // final FIFO empty check
+      apb_read(12'h04C, fstat);
+      if (fstat[7:4] != 4'd0) $fatal(1, "RX FIFO not empty after DMA read drain");
+    end
+    // ensure flash ready before DMA program
+    wait_flash_ready();
+
     // 8) DMA Program test: write 4B from mem[1] to flash @ 0x0
     // Prepare source data in AXI RAM
     mem.mem[1] = 32'h1122_3344;
     // WREN
     cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h06, 8'h00, 32'h0, 32'd0);
-    ctrl_trigger(); repeat (20) @(posedge clk);
+    ctrl_trigger();
+    wait_cmd_done();
+    repeat (400) @(posedge clk);
     // Configure program
     cfg_dma(4'd1, 1'b0, 1'b1, 32'h0000_0004, 32'd4);
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd0, 1'b1, 8'h02, 8'h00, 32'h0, 32'd4);
     ctrl_dma_enable();
     ctrl_trigger();
-    // Poll WIP
-    for (i=0;i<200000;i=i+1) begin
-      cfg_cmd(2'b00,2'b00,2'b00, 2'b00, 4'd0, 1'b0, 8'h05, 8'h00, 32'h0, 32'd4);
-      ctrl_trigger();
-      repeat (50) @(posedge clk);
-      pop_rx(dword);
-      if (dword[31] == 1'b0) i = 200000;
-    end
+    // Wait for DMA program to finish and controller to idle
+    wait_flash_ready();
     // Verify DMA program: try 0x03 exact, else 0x0B exact; else accept non-FFFF on 0x0B as tolerant pass
     rd03 = 32'h0; rd0b = 32'h0; rb_ok = 0;
     // 0x03
@@ -602,6 +727,7 @@ module top_cmd_tb;
     pop_rx(dword); if (dword !== 32'hFFFF_FFFF) $fatal(1, "DREAD word1 mismatch: %h", dword);
 
     // 10) Dual Output Read (0x3B) with DMA, len=8 @ mem[0]
+    wait_flash_ready();
     cfg_dma(4'd2, 1'b1, 1'b1, 32'h0000_0000, 32'd8);
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd8, 1'b0, 8'h3B, 8'h00, 32'h0, 32'd8);
     ctrl_dma_enable(); ctrl_trigger();
@@ -616,6 +742,7 @@ module top_cmd_tb;
     pop_rx(dword); if (dword !== 32'hFFFF_FFFF) $fatal(1, "QREAD word1 mismatch: %h", dword);
 
     // 12) Quad Output Read (0x6B) with DMA, len=8 @ mem[2]
+    wait_flash_ready();
     cfg_dma(4'd2, 1'b1, 1'b1, 32'h0000_0008, 32'd8);
     cfg_cmd(2'b00,2'b00,2'b00, 2'b01, 4'd8, 1'b0, 8'h6B, 8'h00, 32'h0, 32'd8);
     ctrl_dma_enable(); ctrl_trigger();
