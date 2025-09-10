@@ -31,7 +31,9 @@ INTEG_TESTS := \
 TOP_TESTS := \
   top_tb \
   top_cmd_tb \
-  apb_master_tb
+  apb_master_tb \
+  cmd_dma_burst_tb \
+  cmd_dma_program_burst_tb
 
 FLASH_TESTS := $(TOP_TESTS)
 
@@ -56,7 +58,12 @@ EXTENDED_TESTS := \
   xip_engine_tb \
   xip_engine_quad_io_tb \
   xip_engine_cont_read_tb \
-  xip_engine_4b_tb
+  xip_engine_4b_tb \
+  xip_engine_quad_output_tb \
+  xip_engine_4b_quad_io_tb \
+  xip_engine_multiword_burst_tb \
+  xip_engine_invalid_opcode_tb \
+  xip_engine_quad_io_modebits_tb
 
 test-extended:
 	@$(MAKE) --no-print-directory _run_suite TESTS="$(EXTENDED_TESTS)"

@@ -6,6 +6,7 @@ The QSPI Flash Device Controller is a parameterizable Verilog IP core that bridg
 - Unit + integration tests: PASS (`make test-fast`)
 - XIP extended tests (quad IO, continuous read, 4‑byte addr): PASS (`make test-extended`)
 - Top/system tests (including flash model): PASS (`make test-all`)
+- New scenarios: command‑mode multiword DMA burst, quad‑output XIP, 4B+QIO, mode‑bits variations, and invalid opcode handling.
 - VCD and logs are under `.sim/`; recent VCDs are also kept at repo root for convenience.
 
 ## Features
@@ -68,6 +69,16 @@ Artifacts:
 - Build logs: `.sim/<tb>.build.log`
 - Run logs: `.sim/<tb>.run.log`
 - Waveforms: `.sim/*.vcd` (some tests also emit VCDs in repo root)
+
+### New Test Scenarios
+- `tb/cmd_dma_burst_tb.v`: Command‑mode multiword DMA read (0x0B fast‑read, 64B) with `burst_size=8`; verifies AXI RAM receives sixteen 0xFFFF_FFFF words. Exercises CSR→CE→FSM→FIFO RX→DMA path and FIFO‑level gating.
+- `tb/xip_engine_quad_output_tb.v`: XIP Quad‑Output fast read (1‑1‑4, 0x6B) with dummy cycles; validates IO lane switching per MX25L6436F spec.
+- `tb/xip_engine_4b_quad_io_tb.v`: XIP 4‑byte addressing + Quad I/O (0xEB + 0xA0 mode bits); checks 1‑4‑4 path with extended address.
+- `tb/xip_engine_multiword_burst_tb.v`: XIP continuous read with CS hold (cs_auto=0); issues 8 sequential AXI reads to confirm multiword fetch behavior.
+- `tb/xip_engine_quad_io_modebits_tb.v`: Quad I/O with non‑A0 mode bits (variation); ensures robust reads despite mode bits differences.
+- `tb/xip_engine_invalid_opcode_tb.v`: Negative test using unsupported opcode (0x00); ensures no hang and AXI read completes.
+
+These benches follow the project’s QSPI Controller Specification and basic Macronix MX25L6436F command behavior as modeled in `src/qspi_device.v`.
 
 ## Known Gaps / Next Work
 - AXI is AXI4‑Lite style (single‑beat). If multi‑beat bursts are required, extend DMA and XIP to full AXI4 with burst parameters and alignment handling.
