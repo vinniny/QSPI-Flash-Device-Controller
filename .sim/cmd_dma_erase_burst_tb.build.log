@@ -1,0 +1,8 @@
+tb/cmd_dma_erase_burst_tb.v:105: warning: task definition for "ctrl_enable" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:106: warning: task definition for "ctrl_set_mode0" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:107: warning: task definition for "ctrl_trigger" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:108: warning: task definition for "ctrl_dma_enable" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:109: warning: task definition for "set_cs_auto" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:145: warning: task definition for "wait_idle" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:150: warning: task definition for "wait_flash_ready" has an empty port declaration list!
+tb/cmd_dma_erase_burst_tb.v:168: warning: task definition for "drain_rx" has an empty port declaration list!

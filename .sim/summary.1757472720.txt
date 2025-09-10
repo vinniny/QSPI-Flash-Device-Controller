@@ -1,0 +1,9 @@
+xip_engine_tb: PASS
+xip_engine_quad_io_tb: PASS
+xip_engine_cont_read_tb: PASS
+xip_engine_4b_tb: PASS
+xip_engine_quad_output_tb: PASS
+xip_engine_4b_quad_io_tb: PASS
+xip_engine_multiword_burst_tb: PASS
+xip_engine_invalid_opcode_tb: OK
+xip_engine_quad_io_modebits_tb: PASS
