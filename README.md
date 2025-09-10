@@ -6,7 +6,7 @@ The QSPI Flash Device Controller is a parameterizable Verilog IP core that bridg
 - Unit + integration tests: PASS (`make test-fast`)
 - XIP extended tests (quad IO, continuous read, 4‑byte addr): PASS (`make test-extended`)
 - Top/system tests (including flash model): PASS (`make test-all`)
-- New scenarios: command‑mode multiword DMA burst, quad‑output XIP, 4B+QIO, mode‑bits variations, and invalid opcode handling.
+- New scenarios: command‑mode multiword DMA burst (read/program/erase), quad‑output XIP, 4B+QIO, mode‑bits variations, and invalid opcode handling.
 - VCD and logs are under `.sim/`; recent VCDs are also kept at repo root for convenience.
 
 ## Features
@@ -77,6 +77,52 @@ Artifacts:
 - `tb/xip_engine_multiword_burst_tb.v`: XIP continuous read with CS hold (cs_auto=0); issues 8 sequential AXI reads to confirm multiword fetch behavior.
 - `tb/xip_engine_quad_io_modebits_tb.v`: Quad I/O with non‑A0 mode bits (variation); ensures robust reads despite mode bits differences.
 - `tb/xip_engine_invalid_opcode_tb.v`: Negative test using unsupported opcode (0x00); ensures no hang and AXI read completes.
+- `tb/cmd_dma_program_burst_tb.v`: Command‑mode multiword DMA program (0x02, 64B) from AXI RAM into flash with robust readback checks (0x03/0x0B) and WEL verification.
+- `tb/cmd_dma_erase_burst_tb.v`: Command‑mode sector erase (0x20) after a DMA program, then DMA read back (64B) to verify all 0xFFFF_FFFF.
+
+### Quick Runs (DMA Burst Tests)
+- Read burst: `make -s _run_suite TESTS="cmd_dma_burst_tb"`
+- Program burst: `make -s _run_suite TESTS="cmd_dma_program_burst_tb"`
+- Erase + readback burst: `make -s _run_suite TESTS="cmd_dma_erase_burst_tb"`
+
+## Latest Test Summary
+
+Totals
+- Test-All: 20 tests, 20 PASS, 0 FAIL
+- Test-Extended: 9 tests, 9 PASS, 0 FAIL
+
+Test-All
+- csr_tb: PASS
+- qspi_fsm_tb: PASS
+- qspi_fsm_quad_eb_tb: PASS
+- fifo_tx_tb: PASS
+- fifo_rx_tb: PASS
+- qspi_device_tb: PASS
+- tb_axi4_ram_slave: PASS
+- error_csr_tb: PASS
+- dma_engine_tb: PASS
+- int_csr_ce_tb: PASS
+- int_csr_ce_fsm_tb: PASS
+- int_csr_ce_fsm_dma_tb: PASS
+- irq_dma_tb: PASS
+- clk_div_tb: PASS
+- top_tb: PASS
+- top_cmd_tb: PASS
+- apb_master_tb: PASS
+- cmd_dma_burst_tb: PASS
+- cmd_dma_program_burst_tb: PASS
+- cmd_dma_erase_burst_tb: PASS
+
+Test-Extended
+- xip_engine_tb: PASS
+- xip_engine_quad_io_tb: PASS
+- xip_engine_cont_read_tb: PASS
+- xip_engine_4b_tb: PASS
+- xip_engine_quad_output_tb: PASS
+- xip_engine_4b_quad_io_tb: PASS
+- xip_engine_multiword_burst_tb: PASS
+- xip_engine_invalid_opcode_tb: PASS
+- xip_engine_quad_io_modebits_tb: PASS
 
 These benches follow the project’s QSPI Controller Specification and basic Macronix MX25L6436F command behavior as modeled in `src/qspi_device.v`.
 
