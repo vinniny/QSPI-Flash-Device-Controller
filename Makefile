@@ -33,7 +33,8 @@ TOP_TESTS := \
   top_cmd_tb \
   apb_master_tb \
   cmd_dma_burst_tb \
-  cmd_dma_program_burst_tb
+  cmd_dma_program_burst_tb \
+  cmd_dma_erase_burst_tb
 
 FLASH_TESTS := $(TOP_TESTS)
 
